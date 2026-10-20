@@ -25,6 +25,20 @@ Baza lokalna: `localhost:5433` (patrz `.env.example`).
 
 1. Koszyk R2 w panelu Cloudflare i klucz API (S3). Bez R2 pliki lądują w `./storage` w kontenerze i znikają przy następnym deployu. `R2_PUBLIC_BASE_URL` sprawia, że przeglądarka bierze WebP wprost z R2.
 
+   Edytor wysyła JPEG prosto do R2, więc koszyk potrzebuje CORS. W ustawieniach koszyka:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://rajdsniezki.rallydevil.com"],
+       "AllowedMethods": ["PUT", "GET", "HEAD"],
+       "AllowedHeaders": ["content-type"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
 2. Na VPS:
 
 ```bash

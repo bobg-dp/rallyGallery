@@ -38,6 +38,10 @@ function r2() {
       accessKeyId: process.env.R2_ACCESS_KEY_ID!,
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
     },
+    // Domyślna suma CRC32 ląduje w podpisanym adresie. Przeglądarka robi wtedy
+    // preflight, a R2 odpowiada błędem i CORS blokuje wysyłkę.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 }
 
