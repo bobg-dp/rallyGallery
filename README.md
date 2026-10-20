@@ -54,7 +54,7 @@ W `deploy/.env.prod` uzupełnij:
 - `AUTH_URL` — dokładny publiczny adres, razem z `https://`
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `EDITOR_EMAIL`, `EDITOR_PASSWORD` — login, nie musi być adresem e-mail
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
-- `R2_PUBLIC_BASE_URL` — bez ukośnika na końcu
+- `R2_PUBLIC_BASE_URL` — pełny adres z `https://`, bez ukośnika na końcu. Sam host też zadziała: kod dopisze `https://`
 
 3. Deploy i jednorazowy seed kont:
 

@@ -45,8 +45,15 @@ function r2() {
   });
 }
 
+function publicAssetBase() {
+  const raw = process.env.R2_PUBLIC_BASE_URL?.trim().replace(/\/$/, "");
+  if (!raw) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return raw;
+  return `https://${raw}`;
+}
+
 export function derivativeUrl(key: string) {
-  const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
+  const base = publicAssetBase();
   if (usingR2() && base) return `${base}/${key}`;
   return `/api/media/${key}`;
 }
