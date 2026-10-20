@@ -1,0 +1,106 @@
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { getDb } from "@/db";
+import { authors, competitions, crewEntries, events, galleries, people, photos, stages } from "@/db/schema";
+import { derivativeUrl } from "./storage";
+import { dateToWarsawInput } from "./time";
+
+const codrivers = alias(people, "codrivers");
+
+export async function listStudioGalleries() {
+  return getDb()
+    .select({
+      id: galleries.id,
+      title: galleries.title,
+      slug: galleries.slug,
+      createdAt: galleries.createdAt,
+      eventName: events.name,
+      eventSlug: events.slug,
+      authorName: authors.name,
+      drafts: sql<number>`count(${photos.id}) filter (where ${photos.status} = 'draft')`.mapWith(Number),
+      published: sql<number>`count(${photos.id}) filter (where ${photos.status} = 'published')`.mapWith(Number),
+    })
+    .from(galleries)
+    .innerJoin(events, eq(galleries.eventId, events.id))
+    .innerJoin(authors, eq(galleries.authorId, authors.id))
+    .leftJoin(photos, eq(photos.galleryId, galleries.id))
+    .groupBy(galleries.id, events.id, authors.id)
+    .orderBy(desc(galleries.createdAt));
+}
+
+export async function listEventOptions() {
+  return getDb()
+    .select({ id: events.id, name: events.name })
+    .from(events)
+    .orderBy(desc(events.startsOn));
+}
+
+export async function listAuthors() {
+  return getDb().select().from(authors).orderBy(asc(authors.name));
+}
+
+export async function getDesk(galleryId: string) {
+  const gallery = await getDb().query.galleries.findFirst({
+    where: eq(galleries.id, galleryId),
+    with: { author: true, event: true },
+  });
+  if (!gallery) return null;
+
+  const [stageRows, crewRows, competitionRows, authorRows, photoRows] = await Promise.all([
+    getDb().select().from(stages).where(eq(stages.eventId, gallery.eventId)).orderBy(asc(stages.position)),
+    getDb()
+      .select({
+        id: crewEntries.id,
+        startNumber: crewEntries.startNumber,
+        className: crewEntries.className,
+        car: crewEntries.car,
+        driverName: people.name,
+        codriverName: codrivers.name,
+        competitionName: competitions.name,
+      })
+      .from(crewEntries)
+      .innerJoin(people, eq(crewEntries.driverId, people.id))
+      .leftJoin(codrivers, eq(crewEntries.codriverId, codrivers.id))
+      .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
+      .where(eq(crewEntries.eventId, gallery.eventId))
+      .orderBy(asc(crewEntries.startNumber)),
+    getDb()
+      .select({ id: competitions.id, name: competitions.name })
+      .from(competitions)
+      .where(eq(competitions.eventId, gallery.eventId))
+      .orderBy(asc(competitions.position), asc(competitions.name)),
+    listAuthors(),
+    getDb().select().from(photos).where(eq(photos.galleryId, gallery.id)).orderBy(desc(photos.createdAt)),
+  ]);
+
+  return {
+    gallery: {
+      id: gallery.id,
+      title: gallery.title,
+      slug: gallery.slug,
+      eventId: gallery.eventId,
+      eventName: gallery.event.name,
+      eventSlug: gallery.event.slug,
+      authorId: gallery.authorId,
+      authorName: gallery.author.name,
+      heroPhotoId: gallery.event.heroPhotoId,
+    },
+    stages: stageRows,
+    competitions: competitionRows,
+    crews: crewRows,
+    authors: authorRows.map((author) => ({ id: author.id, name: author.name })),
+    photos: photoRows.map((photo) => ({
+      id: photo.id,
+      status: photo.status,
+      thumbUrl: derivativeUrl(photo.thumbKey),
+      width: photo.width,
+      height: photo.height,
+      caption: photo.caption,
+      capturedAt: photo.capturedAt ? dateToWarsawInput(photo.capturedAt) : "",
+      latitude: photo.latitude,
+      longitude: photo.longitude,
+      stageId: photo.stageId,
+      crewEntryId: photo.crewEntryId,
+    })),
+  };
+}

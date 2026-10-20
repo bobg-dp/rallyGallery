@@ -1,0 +1,21 @@
+# Dopisz ten blok do Caddyfile na VPS (ten od devilSpy).
+# Kontener Caddy musi wejsc na siec rallygallery_internal.
+#
+# W proxy/docker-compose.yml, obok app_internal:
+#
+# networks:
+#   app_internal:
+#     external: true
+#     name: devilspy_internal
+#   rallygallery:
+#     external: true
+#     name: rallygallery_internal
+#
+# services.caddy.networks:
+#   - app_internal
+#   - rallygallery
+
+galeria.example.pl {
+	encode zstd gzip
+	reverse_proxy web:3000
+}

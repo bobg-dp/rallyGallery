@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# rallyGallery
 
-## Getting Started
+Galeria zdjęć z rajdu. Next.js na VPS, Postgres w osobnym kontenerze, pliki zdjęć w Cloudflare R2.
 
-First, run the development server:
+## Lokalnie
 
 ```bash
+docker compose up -d
+npm install
+npm run db:migrate
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Aplikacja: http://127.0.0.1:3000  
+Baza lokalna: `localhost:5433` (patrz `.env.example`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy na VPS
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Osobny stack Dockera obok devilSpy. Postgres nie ma portu na hoście.
 
-## Learn More
+```bash
+cp deploy/.env.prod.example deploy/.env.prod
+# uzupełnij hasła, AUTH_URL i klucze R2
+./deploy/deploy.sh
+./deploy/deploy.sh seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+Rollback poprzedniego obrazu aplikacji:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+./deploy/deploy.sh rollback
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Na serwerze aplikacja słucha tylko na `127.0.0.1:18082`. Publiczny ruch idzie przez Caddy, który już stoi przy devilSpy. Blok do dopisania jest w `deploy/Caddyfile.snippet`. Caddy musi być podłączone do sieci `rallygallery_internal` i proxować na `web:3000`.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Koszyk R2 zakładasz w panelu Cloudflare. Klucze API (S3) trafiają do `deploy/.env.prod`, nie do repo. `R2_PUBLIC_BASE_URL` sprawia, że przeglądarka bierze WebP wprost z R2.
