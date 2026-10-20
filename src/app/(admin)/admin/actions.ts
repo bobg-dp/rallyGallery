@@ -8,6 +8,7 @@ import { getDb } from "@/db";
 import { authors, competitions, crewEntries, events, galleries, photos, series, sessions, stages, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/current-user";
 import { parseAuthorFields, readString, type FormState } from "@/lib/form";
+import { isLogin, normalizeLogin } from "@/lib/login";
 import { purgeEvent } from "@/lib/remove-event";
 import { findOrCreatePerson, slugTaken } from "@/lib/records";
 import { deleteObject } from "@/lib/storage";
@@ -20,11 +21,11 @@ function eventPath(eventId: string, error?: string) {
 export async function createUser(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
   const name = readString(formData, "name");
-  const email = readString(formData, "email").toLowerCase();
+  const email = normalizeLogin(readString(formData, "login"));
   const password = readString(formData, "password");
   const role = readString(formData, "role") === "admin" ? "admin" : "editor";
-  if (!name || !email.includes("@") || password.length < 8) {
-    return { error: "Podaj imię, e-mail i hasło o długości co najmniej 8 znaków." };
+  if (!name || !isLogin(email) || password.length < 8) {
+    return { error: "Podaj imię, login od 2 do 80 znaków bez spacji i hasło o długości co najmniej 8 znaków." };
   }
   const existing = await getDb().query.users.findFirst({ where: eq(users.email, email) });
   if (existing) return { error: "To konto już istnieje." };

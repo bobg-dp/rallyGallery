@@ -28,7 +28,7 @@ export default async function Page() {
               <input type="checkbox" name="disabled" defaultChecked={Boolean(user.disabledAt)} />
               Konto wyłączone
             </label>
-            <p className="text-sm text-muted md:col-span-2">{user.email}</p>
+            <p className="text-sm text-muted md:col-span-2">Login: {user.email}</p>
           </ActionForm>
         ))}
       </div>
@@ -37,8 +37,8 @@ export default async function Page() {
         <Field label="Imię">
           <TextInput name="name" required />
         </Field>
-        <Field label="E-mail">
-          <TextInput name="email" type="email" required />
+        <Field label="Login">
+          <TextInput name="login" type="text" autoComplete="off" required />
         </Field>
         <Field label="Hasło">
           <TextInput name="password" type="password" required />

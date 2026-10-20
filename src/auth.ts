@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { sessions, users } from "@/db/schema";
+import { isLogin, normalizeLogin } from "@/lib/login";
 
 declare module "next-auth" {
   interface Session {
@@ -27,13 +28,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "E-mail", type: "email" },
+        email: { label: "Login", type: "text" },
         password: { label: "Hasło", type: "password" },
       },
       authorize: async (credentials) => {
-        const email = String(credentials.email ?? "").trim().toLowerCase();
+        const email = normalizeLogin(String(credentials.email ?? ""));
         const password = String(credentials.password ?? "");
-        if (!email || !password) return null;
+        if (!isLogin(email) || !password) return null;
         const user = await getDb().query.users.findFirst({ where: eq(users.email, email) });
         if (!user || user.disabledAt) return null;
         const ok = await bcrypt.compare(password, user.passwordHash);

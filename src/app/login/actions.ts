@@ -6,16 +6,17 @@ import { auth, signIn, signOut } from "@/auth";
 import { getDb } from "@/db";
 import { sessions } from "@/db/schema";
 import type { FormState } from "@/lib/form";
+import { normalizeLogin } from "@/lib/login";
 
 export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     await signIn("credentials", {
-      email: formData.get("email"),
+      email: normalizeLogin(String(formData.get("login") ?? "")),
       password: formData.get("password"),
       redirectTo: "/studio",
     });
   } catch (error) {
-    if (error instanceof AuthError) return { error: "Nieprawidłowy e-mail albo hasło." };
+    if (error instanceof AuthError) return { error: "Nieprawidłowy login albo hasło." };
     throw error;
   }
   return {};

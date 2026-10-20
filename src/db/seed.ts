@@ -5,15 +5,17 @@ import { createDb, type AppDb } from "./index";
 import { authors, competitions, crewEntries, events, galleries, people, photos, series, stages, users } from "./schema";
 import { processJpeg } from "../lib/images";
 import { photoKeys, writeObject } from "../lib/storage";
+import { isLogin, normalizeLogin } from "../lib/login";
 import { slugify, uniqueSlug } from "../lib/slug";
 import { warsawLocalToDate } from "../lib/time";
 
 async function ensureUser(db: AppDb, email: string | undefined, password: string | undefined, name: string, role: "admin" | "editor") {
-  if (!email || !password) return;
-  const existing = await db.query.users.findFirst({ where: eq(users.email, email.toLowerCase()) });
+  const login = normalizeLogin(email ?? "");
+  if (!isLogin(login) || !password) return;
+  const existing = await db.query.users.findFirst({ where: eq(users.email, login) });
   if (existing) return;
   await db.insert(users).values({
-    email: email.toLowerCase(),
+    email: login,
     name,
     role,
     passwordHash: await bcrypt.hash(password, 12),
@@ -81,7 +83,7 @@ async function main() {
       return;
     }
 
-    const admin = await db.query.users.findFirst({ where: eq(users.email, (process.env.ADMIN_EMAIL ?? "").toLowerCase()) });
+    const admin = await db.query.users.findFirst({ where: eq(users.email, normalizeLogin(process.env.ADMIN_EMAIL ?? "")) });
     const [season] = await db.insert(series).values({ name: "Rajdowy Puchar Jesieni", slug: "rajdowy-puchar-jesieni" }).returning();
     const [event] = await db
       .insert(events)

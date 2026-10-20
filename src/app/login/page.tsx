@@ -16,8 +16,8 @@ async function LoginForm() {
         <h1 className="mt-2 font-display text-4xl">Wejście</h1>
         <div className="mt-6">
           <ActionForm action={login} submit="Zaloguj">
-            <Field label="E-mail">
-              <TextInput name="email" type="email" autoComplete="username" required />
+            <Field label="Login">
+              <TextInput name="login" type="text" autoComplete="username" required />
             </Field>
             <Field label="Hasło">
               <TextInput name="password" type="password" autoComplete="current-password" required />
