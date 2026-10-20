@@ -92,12 +92,28 @@ run_migrations() {
   compose --profile tools run --rm migrate
 }
 
+resolve_app_version() {
+  local root version sha
+  root="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+  version="$(sed -n 's/^  "version": "\([^"]*\)".*/\1/p' "${root}/package.json" | head -n1)"
+  version="${version:-dev}"
+  sha="$(git -C "${root}" rev-parse --short HEAD 2>/dev/null || true)"
+  if [[ -n "${sha}" ]]; then
+    export APP_VERSION="${version} (${sha})"
+  else
+    export APP_VERSION="${version}"
+  fi
+}
+
 run_deploy() {
   require_env POSTGRES_USER
   require_env POSTGRES_PASSWORD
   require_env POSTGRES_DB
   require_env AUTH_SECRET
   require_env AUTH_URL
+
+  resolve_app_version
+  echo "Wersja: ${APP_VERSION}"
 
   echo "[1/6] Zapis poprzedniego obrazu (rollback tag)"
   backup_current_image
@@ -120,6 +136,7 @@ run_deploy() {
   echo "Deploy zakonczony"
   echo "Projekt: ${PROJECT_NAME}"
   echo "Aplikacja na VPS: http://127.0.0.1:${WEB_BIND_PORT_VALUE}"
+  echo "Wersja w stopce: ${APP_VERSION}"
   echo "Postgres zostaje w sieci ${PROJECT_NAME}_internal, bez portu na hoscie."
 }
 

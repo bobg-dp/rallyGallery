@@ -13,9 +13,11 @@ RUN npm run build
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
+ARG APP_VERSION=dev
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+ENV APP_VERSION=${APP_VERSION}
 
 COPY --from=build /app/public ./public
 COPY --from=build /app/.next/standalone ./

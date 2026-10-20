@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { SiteFooter } from "@/components/site-footer";
 import { WorkspaceHeader } from "@/components/workspace-header";
 import { requireAdmin } from "@/lib/current-user";
 
 async function Shell({ children }: { children: React.ReactNode }) {
   const user = await requireAdmin();
   return (
-    <div>
+    <div className="flex min-h-screen flex-col">
       <WorkspaceHeader name={user.name} admin />
       <div className="border-b border-line">
         <nav className="mx-auto flex max-w-6xl gap-4 px-4 py-3 text-sm">
@@ -17,7 +18,8 @@ async function Shell({ children }: { children: React.ReactNode }) {
           <Link href="/admin/autorzy">Autorzy</Link>
         </nav>
       </div>
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <SiteFooter />
     </div>
   );
 }

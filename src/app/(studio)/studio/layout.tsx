@@ -1,13 +1,15 @@
 import { Suspense } from "react";
+import { SiteFooter } from "@/components/site-footer";
 import { WorkspaceHeader } from "@/components/workspace-header";
 import { requireUser } from "@/lib/current-user";
 
 async function Shell({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   return (
-    <div>
+    <div className="flex min-h-screen flex-col">
       <WorkspaceHeader name={user.name} admin={user.role === "admin"} />
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <SiteFooter />
     </div>
   );
 }
