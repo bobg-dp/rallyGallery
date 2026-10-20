@@ -9,7 +9,7 @@ import { ConfirmSubmit } from "@/components/confirm-submit";
 import { btnDanger } from "@/components/styles";
 import { Field, SelectInput, TextInput } from "@/components/field";
 import { derivativeUrl } from "@/lib/storage";
-import { createCompetition, createCrewEntry, createStage, deleteCompetition, deleteCrewEntry, deleteEvent, deleteEventPhoto, deleteStage, setCrewCompetition, updateEvent } from "../../actions";
+import { createCompetition, createCrewEntry, createStage, deleteCompetition, deleteCrewEntry, deleteEvent, deleteEventPhoto, deleteStage, importCrewEntries, setCrewCompetition, updateEvent } from "../../actions";
 
 const codrivers = alias(people, "event_codrivers");
 
@@ -183,6 +183,26 @@ export default async function Page({
             </li>
           ))}
         </ul>
+        <ActionForm action={importCrewEntries.bind(null, event.id)} submit="Importuj CSV" className="grid gap-3 rounded-xl border border-line bg-panel p-4 md:grid-cols-2">
+          <Field label="Plik CSV">
+            <input className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-ink file:px-3 file:py-2 file:text-paper" type="file" name="file" accept=".csv,text/csv,text/plain" required />
+          </Field>
+          {competitionRows.length > 0 ? (
+            <Field label="Typ rajdu dla całego pliku">
+              <SelectInput name="competitionId" defaultValue="">
+                <option value="">Bez typu</option>
+                {competitionRows.map((competition) => (
+                  <option key={competition.id} value={competition.id}>
+                    {competition.name}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+          ) : null}
+          <p className="text-sm text-muted md:col-span-2">
+            Kolumny oddzielone średnikiem: Numer Startowy, Kierowca, Pilot, Klasa, Samochód. Numery, które już są na liście, zostają pominięte.
+          </p>
+        </ActionForm>
         <ActionForm action={createCrewEntry.bind(null, event.id)} submit="Dodaj załogę" className="grid gap-3 md:grid-cols-2">
           <Field label="Numer">
             <TextInput name="startNumber" inputMode="numeric" required />

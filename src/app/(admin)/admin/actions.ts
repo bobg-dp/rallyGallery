@@ -11,8 +11,9 @@ import { parseAuthorFields, readString, type FormState } from "@/lib/form";
 import { isLogin, normalizeLogin } from "@/lib/login";
 import { purgeEvent } from "@/lib/remove-event";
 import { findOrCreatePerson, slugTaken } from "@/lib/records";
+import { parseStartListCsv } from "@/lib/start-list-csv";
 import { deleteObject } from "@/lib/storage";
-import { uniqueSlug } from "@/lib/slug";
+import { slugify, uniqueSlug } from "@/lib/slug";
 
 function eventPath(eventId: string, error?: string) {
   return error ? `/admin/rajdy/${eventId}?error=${encodeURIComponent(error)}` : `/admin/rajdy/${eventId}`;
@@ -272,6 +273,58 @@ export async function createCrewEntry(eventId: string, _prev: FormState, formDat
   });
   revalidatePath(`/admin/rajdy/${eventId}`);
   return {};
+}
+
+function crewsAddedLabel(count: number) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (count === 1) return "Dodano 1 załogę.";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `Dodano ${count} załogi.`;
+  return `Dodano ${count} załóg.`;
+}
+
+export async function importCrewEntries(eventId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const event = await getDb().query.events.findFirst({ where: eq(events.id, eventId) });
+  if (!event) return { error: "Nie ma takiego rajdu." };
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "Wybierz plik CSV." };
+  if (file.size > 1024 * 1024) return { error: "Plik jest większy niż 1 MB." };
+  const parsed = parseStartListCsv(await file.text());
+  if ("error" in parsed) return parsed;
+
+  const competition = await competitionForEvent(eventId, readString(formData, "competitionId"));
+  if (!competition) return { error: "Wybierz typ z tego rajdu." };
+
+  const existing = await getDb()
+    .select({ startNumber: crewEntries.startNumber })
+    .from(crewEntries)
+    .where(eq(crewEntries.eventId, eventId));
+  const taken = new Set(existing.map((row) => row.startNumber));
+  const fresh = parsed.rows.filter((row) => !taken.has(row.startNumber));
+  const skipped = parsed.rows.filter((row) => taken.has(row.startNumber)).map((row) => row.startNumber);
+  const samePerson = fresh.find((row) => row.codriver && slugify(row.driver) === slugify(row.codriver));
+  if (samePerson) return { error: `Wiersz ${samePerson.line}: kierowca i pilot muszą być różnymi osobami.` };
+
+  for (const row of fresh) {
+    const driverId = await findOrCreatePerson(row.driver);
+    const codriverId = row.codriver ? await findOrCreatePerson(row.codriver) : null;
+    await getDb().insert(crewEntries).values({
+      eventId,
+      startNumber: row.startNumber,
+      className: row.className,
+      car: row.car,
+      driverId,
+      codriverId,
+      competitionId: competition.id,
+    });
+  }
+
+  revalidatePath(`/admin/rajdy/${eventId}`);
+  revalidatePath(`/${event.slug}`);
+  if (!fresh.length) return { error: `Wszystkie numery są już na liście: ${skipped.join(", ")}.` };
+  const skippedNote = skipped.length ? ` Pominięto numery już na liście: ${skipped.join(", ")}.` : "";
+  return { message: `${crewsAddedLabel(fresh.length)}${skippedNote}` };
 }
 
 export async function deleteCrewEntry(eventId: string, crewId: string) {

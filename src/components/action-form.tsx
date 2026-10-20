@@ -20,6 +20,7 @@ export function ActionForm({
     <form action={formAction} className={className}>
       {children}
       {state.error ? <p className="text-sm text-accent">{state.error}</p> : null}
+      {state.message ? <p className="text-sm">{state.message}</p> : null}
       <button className={btnPrimary} disabled={pending} type="submit">
         {pending ? "Zapisuję…" : submit}
       </button>

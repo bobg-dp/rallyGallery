@@ -1,4 +1,4 @@
-export type FormState = { error?: string };
+export type FormState = { error?: string; message?: string };
 
 export function readString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
