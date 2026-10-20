@@ -16,7 +16,9 @@ import {
   setPublished,
   updateGallery,
 } from "@/app/(studio)/studio/actions";
+import { spectatorsCrew } from "@/lib/query";
 import { ActionForm } from "./action-form";
+import { CarField } from "./car-field";
 import { Field, SelectInput, TextInput } from "./field";
 import { btnDanger, btnGhost, btnPrimary } from "./styles";
 
@@ -42,6 +44,8 @@ type Photo = {
   longitude: number | null;
   stageId: string | null;
   crewEntryId: string | null;
+  spectators: boolean;
+  carName: string | null;
 };
 
 export function Desk({
@@ -204,10 +208,10 @@ export function Desk({
         {selected.map((id) => (
           <input key={id} type="hidden" name="photoId" value={id} />
         ))}
-        <Field label="Odcinek">
+        <Field label="Miejsce">
           <SelectInput name="stageId" defaultValue="">
             <option value="">Bez zmian</option>
-            <option value="clear">Usuń odcinek</option>
+            <option value="clear">Usuń miejsce</option>
             {stages.map((stage) => (
               <option key={stage.id} value={stage.id}>
                 {stage.code} {stage.name}
@@ -219,6 +223,7 @@ export function Desk({
           <SelectInput name="crewEntryId" defaultValue="">
             <option value="">Bez zmian</option>
             <option value="clear">Usuń załogę</option>
+            <option value={spectatorsCrew}>Kibice</option>
             {crews.map((crew) => (
               <option key={crew.id} value={crew.id}>
                 {crew.startNumber} {crew.driverName}
@@ -227,6 +232,13 @@ export function Desk({
               </option>
             ))}
           </SelectInput>
+        </Field>
+        <label className="flex items-center gap-2 text-sm md:col-span-2">
+          <input type="checkbox" name="setCar" />
+          Ustaw auto
+        </label>
+        <Field label="Auto">
+          <CarField />
         </Field>
         <label className="flex items-center gap-2 text-sm md:col-span-2">
           <input type="checkbox" name="setCaption" />
@@ -257,9 +269,9 @@ export function Desk({
         {focused ? (
           <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
             <ActionForm key={focused.id} action={savePhoto.bind(null, gallery.id, focused.id)} submit="Zapisz kadr">
-              <Field label="Odcinek">
+              <Field label="Miejsce">
                 <SelectInput name="stageId" defaultValue={focused.stageId ?? ""}>
-                  <option value="">Bez odcinka</option>
+                  <option value="">Bez miejsca</option>
                   {stages.map((stage) => (
                     <option key={stage.id} value={stage.id}>
                       {stage.code} {stage.name}
@@ -268,8 +280,9 @@ export function Desk({
                 </SelectInput>
               </Field>
               <Field label="Załoga">
-                <SelectInput name="crewEntryId" defaultValue={focused.crewEntryId ?? ""}>
+                <SelectInput name="crewEntryId" defaultValue={focused.spectators ? spectatorsCrew : (focused.crewEntryId ?? "")}>
                   <option value="">Bez załogi</option>
+                  <option value={spectatorsCrew}>Kibice</option>
                   {crews.map((crew) => (
                     <option key={crew.id} value={crew.id}>
                       {crew.startNumber} {crew.driverName}
@@ -278,6 +291,9 @@ export function Desk({
                     </option>
                   ))}
                 </SelectInput>
+              </Field>
+              <Field label="Auto">
+                <CarField key={focused.id} defaultValue={focused.carName ?? ""} />
               </Field>
               <Field label="Czas wykonania">
                 <TextInput name="capturedAt" type="datetime-local" defaultValue={focused.capturedAt} />

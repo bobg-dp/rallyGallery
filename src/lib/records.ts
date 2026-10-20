@@ -1,7 +1,64 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, ilike, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { people } from "@/db/schema";
+import { cars, crewEntries, people } from "@/db/schema";
 import { slugify, uniqueSlug } from "./slug";
+
+export function normalizeCarName(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+export async function findOrCreateCar(raw: string) {
+  const name = normalizeCarName(raw);
+  const db = getDb();
+  const existing = await db
+    .select({ id: cars.id })
+    .from(cars)
+    .where(sql`lower(${cars.name}) = ${name.toLowerCase()}`)
+    .limit(1);
+  if (existing[0]) return existing[0].id;
+  const slug = await uniqueSlug(slugify(name), async (candidate) => {
+    const row = await db.select({ id: cars.id }).from(cars).where(eq(cars.slug, candidate)).limit(1);
+    return Boolean(row[0]);
+  });
+  try {
+    const [created] = await db.insert(cars).values({ name, slug }).returning({ id: cars.id });
+    return created.id;
+  } catch {
+    const again = await db
+      .select({ id: cars.id })
+      .from(cars)
+      .where(sql`lower(${cars.name}) = ${name.toLowerCase()}`)
+      .limit(1);
+    if (again[0]) return again[0].id;
+    throw new Error("Nie udało się zapisać auta.");
+  }
+}
+
+export async function searchCars(raw: string) {
+  const query = normalizeCarName(raw);
+  if (query.length < 1) return [];
+  const like = `%${query.replace(/[%_]/g, "")}%`;
+  const db = getDb();
+  const [catalog, declared] = await Promise.all([
+    db.select({ name: cars.name }).from(cars).where(ilike(cars.name, like)).orderBy(asc(cars.name)).limit(8),
+    db
+      .selectDistinct({ name: crewEntries.car })
+      .from(crewEntries)
+      .where(ilike(crewEntries.car, like))
+      .orderBy(asc(crewEntries.car))
+      .limit(8),
+  ]);
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const name of [...catalog, ...declared].map((row) => row.name).sort((a, b) => a.localeCompare(b, "pl"))) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+    if (names.length === 8) break;
+  }
+  return names;
+}
 
 export async function findOrCreatePerson(name: string) {
   const trimmed = name.trim();

@@ -7,10 +7,21 @@ import { getDb } from "@/db";
 import { authors, competitions, crewEntries, events, galleries, photos, stages } from "@/db/schema";
 import { parseAuthorFields, readString, type FormState } from "@/lib/form";
 import { requireUser } from "@/lib/current-user";
-import { eventSlugTaken, findOrCreatePerson, slugTaken } from "@/lib/records";
+import { eventSlugTaken, findOrCreateCar, findOrCreatePerson, normalizeCarName, slugTaken } from "@/lib/records";
 import { deleteObject, photoKeys } from "@/lib/storage";
 import { uniqueSlug } from "@/lib/slug";
+import { spectatorsCrew } from "@/lib/query";
 import { warsawLocalToDate } from "@/lib/time";
+
+async function crewAssignment(eventId: string, value: string) {
+  if (!value || value === "clear") return { crewEntryId: null, spectators: false };
+  if (value === spectatorsCrew) return { crewEntryId: null, spectators: true };
+  const crew = await getDb().query.crewEntries.findFirst({
+    where: and(eq(crewEntries.id, value), eq(crewEntries.eventId, eventId)),
+  });
+  if (!crew) return { error: "Wybierz załogę z tego rajdu." as const };
+  return { crewEntryId: value, spectators: false };
+}
 
 function refresh(galleryId: string, eventSlug?: string) {
   revalidatePath(`/studio/${galleryId}`);
@@ -143,27 +154,28 @@ export async function savePhoto(galleryId: string, photoId: string, _prev: FormS
   const stageId = readString(formData, "stageId");
   const crewEntryId = readString(formData, "crewEntryId");
   const caption = readString(formData, "caption");
+  const carName = normalizeCarName(readString(formData, "carName"));
   const capturedRaw = readString(formData, "capturedAt");
   if (caption.length > 400) return { error: "Podpis jest za długi." };
+  if (carName.length > 80) return { error: "Nazwa auta jest za długa." };
   if (stageId) {
     const stage = await getDb().query.stages.findFirst({
       where: and(eq(stages.id, stageId), eq(stages.eventId, gallery.eventId)),
     });
-    if (!stage) return { error: "Wybierz odcinek z tego rajdu." };
+    if (!stage) return { error: "Wybierz miejsce z tego rajdu." };
   }
-  if (crewEntryId) {
-    const crew = await getDb().query.crewEntries.findFirst({
-      where: and(eq(crewEntries.id, crewEntryId), eq(crewEntries.eventId, gallery.eventId)),
-    });
-    if (!crew) return { error: "Wybierz załogę z tego rajdu." };
-  }
+  const crew = await crewAssignment(gallery.eventId, crewEntryId);
+  if ("error" in crew) return { error: crew.error };
   const capturedAt = capturedRaw ? warsawLocalToDate(capturedRaw) : null;
   if (capturedRaw && !capturedAt) return { error: "Sprawdź czas wykonania." };
+  const carId = carName ? await findOrCreateCar(carName) : null;
   await getDb()
     .update(photos)
     .set({
       stageId: stageId || null,
-      crewEntryId: crewEntryId || null,
+      crewEntryId: crew.crewEntryId,
+      spectators: crew.spectators,
+      carId,
       caption: caption || null,
       capturedAt,
     })
@@ -182,6 +194,8 @@ export async function applyBulk(galleryId: string, _prev: FormState, formData: F
   const patch: {
     stageId?: string | null;
     crewEntryId?: string | null;
+    spectators?: boolean;
+    carId?: string | null;
     caption?: string | null;
   } = {};
   const stageId = readString(formData, "stageId");
@@ -193,20 +207,23 @@ export async function applyBulk(galleryId: string, _prev: FormState, formData: F
     const stage = await getDb().query.stages.findFirst({
       where: and(eq(stages.id, stageId), eq(stages.eventId, gallery.eventId)),
     });
-    if (!stage) return { error: "Wybierz odcinek z tego rajdu." };
+    if (!stage) return { error: "Wybierz miejsce z tego rajdu." };
     patch.stageId = stageId;
   }
-  if (crewEntryId === "clear") patch.crewEntryId = null;
-  else if (crewEntryId) {
-    const crew = await getDb().query.crewEntries.findFirst({
-      where: and(eq(crewEntries.id, crewEntryId), eq(crewEntries.eventId, gallery.eventId)),
-    });
-    if (!crew) return { error: "Wybierz załogę z tego rajdu." };
-    patch.crewEntryId = crewEntryId;
+  if (crewEntryId) {
+    const crew = await crewAssignment(gallery.eventId, crewEntryId);
+    if ("error" in crew) return { error: crew.error };
+    patch.crewEntryId = crew.crewEntryId;
+    patch.spectators = crew.spectators;
   }
   if (setCaption) {
     if (caption.length > 400) return { error: "Podpis jest za długi." };
     patch.caption = caption || null;
+  }
+  if (formData.get("setCar") === "on") {
+    const carName = normalizeCarName(readString(formData, "carName"));
+    if (carName.length > 80) return { error: "Nazwa auta jest za długa." };
+    patch.carId = carName ? await findOrCreateCar(carName) : null;
   }
   if (!Object.keys(patch).length) return { error: "Wybierz, co zmienić." };
   await getDb()

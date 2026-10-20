@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { getEventBundle } from "@/lib/gallery-data";
-import { withQuery, type PublicQuery } from "@/lib/query";
+import { spectatorsCrew, withQuery, type PublicQuery } from "@/lib/query";
 import { inputClass } from "./styles";
 
 type Bundle = NonNullable<Awaited<ReturnType<typeof getEventBundle>>>;
@@ -40,6 +40,15 @@ export function PublicChrome({
         .map((row) => row.className),
     ),
   ].sort((a, b) => a.localeCompare(b, "pl"));
+  const carOptions = [
+    ...new Map(
+      bundle.cars
+        .filter((row) => !query.competition || row.competitionSlug === query.competition)
+        .map((row) => [row.slug, row.name] as const),
+    ),
+  ];
+  const activeCar = bundle.cars.find((row) => row.slug === query.car)?.name;
+  const crews = bundle.crews.filter((row) => !query.competition || row.competitionSlug === query.competition);
   return (
     <div>
       <header className="border-b border-line">
@@ -68,7 +77,7 @@ export function PublicChrome({
         {bundle.competitions.length > 0 ? (
           <nav className="mx-auto flex max-w-6xl gap-2 overflow-x-auto px-4 pb-4 text-sm">
             <Link
-              href={withQuery(formPath, query, { competition: undefined, className: undefined, photo: undefined })}
+              href={withQuery(formPath, query, { competition: undefined, className: undefined, car: undefined, photo: undefined })}
               className={`rounded-full px-3 py-1 ${query.competition ? "text-muted" : "bg-ink text-paper"}`}
             >
               Cała impreza
@@ -76,7 +85,7 @@ export function PublicChrome({
             {bundle.competitions.map((competition) => (
               <Link
                 key={competition.slug}
-                href={withQuery(formPath, query, { competition: competition.slug, className: undefined, photo: undefined })}
+                href={withQuery(formPath, query, { competition: competition.slug, className: undefined, car: undefined, photo: undefined })}
                 className={`rounded-full px-3 py-1 ${query.competition === competition.slug ? "bg-ink text-paper" : "text-muted"}`}
               >
                 {competition.name}
@@ -103,15 +112,23 @@ export function PublicChrome({
             ← Wszystkie zdjęcia rajdu
           </Link>
         )}
-        <form action={formPath} className="grid gap-2 md:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+        <form action={formPath} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {query.view !== "all" ? <input type="hidden" name="view" value={query.view} /> : null}
           {query.display !== "grid" ? <input type="hidden" name="display" value={query.display} /> : null}
           {query.author ? <input type="hidden" name="author" value={query.author} /> : null}
-          {query.crew ? <input type="hidden" name="crew" value={query.crew} /> : null}
           {query.competition ? <input type="hidden" name="typ" value={query.competition} /> : null}
           <input className={inputClass} name="q" defaultValue={query.q ?? ""} placeholder="Numer, kierowca albo pilot" />
+          <select className={inputClass} name="crew" defaultValue={query.crew ?? ""}>
+            <option value="">Wszyscy zawodnicy</option>
+            <option value={spectatorsCrew}>Kibice</option>
+            {crews.map((crew) => (
+              <option key={crew.startNumber} value={String(crew.startNumber)}>
+                {crew.startNumber} {crew.driverName}
+              </option>
+            ))}
+          </select>
           <select className={inputClass} name="stage" defaultValue={query.stage ?? ""}>
-            <option value="">Wszystkie odcinki</option>
+            <option value="">Wszystkie miejsca</option>
             {bundle.stages.map((stage) => (
               <option key={stage.slug} value={stage.slug}>
                 {stage.code} {stage.name}
@@ -126,10 +143,18 @@ export function PublicChrome({
               </option>
             ))}
           </select>
+          <select className={inputClass} name="auto" defaultValue={query.car ?? ""}>
+            <option value="">Wszystkie auta</option>
+            {carOptions.map(([slug, name]) => (
+              <option key={slug} value={slug}>
+                {name}
+              </option>
+            ))}
+          </select>
           {query.view === "all" ? (
             <select className={inputClass} name="sort" defaultValue={query.sort}>
               <option value="time">Czas wykonania</option>
-              <option value="stage">Odcinek</option>
+              <option value="stage">Miejsce</option>
               <option value="crew">Numer załogi</option>
               <option value="author">Fotograf</option>
             </select>
@@ -148,7 +173,12 @@ export function PublicChrome({
           ) : null}
           {query.crew ? (
             <Link className="rounded-full bg-panel px-3 py-1" href={withQuery(formPath, query, { crew: undefined, photo: undefined })}>
-              Załoga {query.crew} ×
+              {query.crew === spectatorsCrew ? "Kibice" : `Załoga ${query.crew}`} ×
+            </Link>
+          ) : null}
+          {query.car ? (
+            <Link className="rounded-full bg-panel px-3 py-1" href={withQuery(formPath, query, { car: undefined, photo: undefined })}>
+              Auto: {activeCar ?? query.car} ×
             </Link>
           ) : null}
         </div>

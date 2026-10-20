@@ -1,0 +1,1 @@
+ALTER TABLE "photos" ADD COLUMN "spectators" boolean DEFAULT false NOT NULL;

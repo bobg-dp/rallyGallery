@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
-import { authors, competitions, crewEntries, events, galleries, people, photos, series, stages } from "@/db/schema";
+import { authors, cars, competitions, crewEntries, events, galleries, people, photos, series, stages } from "@/db/schema";
 import { derivativeUrl } from "./storage";
-import type { PublicQuery } from "./query";
+import { spectatorsCrew, type PublicQuery } from "./query";
 
 const drivers = alias(people, "drivers");
 const codrivers = alias(people, "codrivers");
@@ -28,6 +28,9 @@ export type PhotoCard = {
   driverName: string | null;
   codriverName: string | null;
   car: string | null;
+  carName: string | null;
+  carSlug: string | null;
+  spectators: boolean;
   className: string | null;
   competitionName: string | null;
   authorName: string;
@@ -84,7 +87,7 @@ export async function getEventBundle(slug: string) {
     with: { series: true },
   });
   if (!event) return null;
-  const [siblings, stageRows, competitionRows, classRows] = await Promise.all([
+  const [siblings, stageRows, competitionRows, crewRows, classRows] = await Promise.all([
     getDb()
       .select({ slug: events.slug, name: events.name })
       .from(events)
@@ -101,6 +104,17 @@ export async function getEventBundle(slug: string) {
       .where(eq(competitions.eventId, event.id))
       .orderBy(asc(competitions.position), asc(competitions.name)),
     getDb()
+      .select({
+        startNumber: crewEntries.startNumber,
+        driverName: drivers.name,
+        competitionSlug: competitions.slug,
+      })
+      .from(crewEntries)
+      .innerJoin(drivers, eq(crewEntries.driverId, drivers.id))
+      .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
+      .where(eq(crewEntries.eventId, event.id))
+      .orderBy(asc(crewEntries.startNumber)),
+    getDb()
       .selectDistinct({ className: crewEntries.className, competitionSlug: competitions.slug })
       .from(crewEntries)
       .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
@@ -113,7 +127,21 @@ export async function getEventBundle(slug: string) {
     siblings,
     stages: stageRows,
     competitions: competitionRows,
+    crews: crewRows,
     classes: classRows,
+    cars: await getDb()
+      .selectDistinct({
+        slug: cars.slug,
+        name: cars.name,
+        competitionSlug: competitions.slug,
+      })
+      .from(photos)
+      .innerJoin(galleries, eq(photos.galleryId, galleries.id))
+      .innerJoin(cars, eq(photos.carId, cars.id))
+      .leftJoin(crewEntries, eq(photos.crewEntryId, crewEntries.id))
+      .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
+      .where(and(eq(galleries.eventId, event.id), eq(photos.status, "published")))
+      .orderBy(asc(cars.name)),
   };
 }
 
@@ -142,8 +170,10 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
   if (query.stage) filters.push(eq(stages.slug, query.stage));
   if (query.author) filters.push(eq(authors.slug, query.author));
   if (query.className) filters.push(eq(crewEntries.className, query.className));
+  if (query.car) filters.push(eq(cars.slug, query.car));
   if (query.competition) filters.push(eq(competitions.slug, query.competition));
-  if (query.crew && /^\d+$/.test(query.crew)) filters.push(eq(crewEntries.startNumber, Number(query.crew)));
+  if (query.crew === spectatorsCrew) filters.push(eq(photos.spectators, true));
+  else if (query.crew && /^\d+$/.test(query.crew)) filters.push(eq(crewEntries.startNumber, Number(query.crew)));
   if (query.q) {
     const like = `%${query.q.replace(/[%_]/g, "")}%`;
     const number = /^\d+$/.test(query.q) ? Number(query.q) : null;
@@ -188,6 +218,9 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
       driverName: drivers.name,
       codriverName: codrivers.name,
       car: crewEntries.car,
+      carName: cars.name,
+      carSlug: cars.slug,
+      spectators: photos.spectators,
       className: crewEntries.className,
       competitionName: competitions.name,
       authorName: authors.name,
@@ -203,6 +236,7 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
     .leftJoin(stages, eq(photos.stageId, stages.id))
     .leftJoin(crewEntries, eq(photos.crewEntryId, crewEntries.id))
     .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
+    .leftJoin(cars, eq(photos.carId, cars.id))
     .leftJoin(drivers, eq(crewEntries.driverId, drivers.id))
     .leftJoin(codrivers, eq(crewEntries.codriverId, codrivers.id))
     .where(and(...filters.filter(present)))
@@ -229,6 +263,9 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
     driverName: row.driverName,
     codriverName: row.codriverName,
     car: row.car,
+    carName: row.carName,
+    carSlug: row.carSlug,
+    spectators: row.spectators,
     className: row.className,
     competitionName: row.competitionName,
     authorName: row.authorName,

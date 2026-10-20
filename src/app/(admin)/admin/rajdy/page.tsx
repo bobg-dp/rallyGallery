@@ -26,7 +26,7 @@ export default async function Page() {
               </Link>
               <ConfirmSubmit
                 action={deleteEvent.bind(null, event.id)}
-                message="Usunąć ten rajd razem ze zdjęciami, odcinkami i listą startową?"
+                message="Usunąć ten rajd razem ze zdjęciami, miejscami i listą startową?"
                 className={btnDanger}
               >
                 Usuń

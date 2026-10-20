@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PhotoCard } from "@/lib/gallery-data";
-import { withQuery, type PublicQuery } from "@/lib/query";
+import { spectatorsCrew, withQuery, type PublicQuery } from "@/lib/query";
 import { buildTimeline } from "@/lib/timeline";
 import { formatWarsaw } from "@/lib/time";
 
@@ -103,11 +103,17 @@ function flightTransform(origin: Frame, dest: Frame) {
 function facts(photo: PhotoCard) {
   const rows: { label: string; value: string }[] = [];
   const crew = crewLine(photo);
-  if (crew) rows.push({ label: "Załoga", value: crew });
-  const car = [photo.car, photo.className].filter(Boolean).join(" · ");
-  if (car) rows.push({ label: "Auto", value: car });
+  if (photo.spectators) rows.push({ label: "Zawodnicy", value: "Kibice" });
+  else if (crew) rows.push({ label: "Załoga", value: crew });
+  if (photo.carName) {
+    rows.push({ label: "Auto", value: photo.carName });
+    if (photo.className) rows.push({ label: "Klasa", value: photo.className });
+  } else {
+    const car = [photo.car, photo.className].filter(Boolean).join(" · ");
+    if (car) rows.push({ label: "Auto", value: car });
+  }
   if (photo.competitionName) rows.push({ label: "Typ", value: photo.competitionName });
-  if (photo.stageCode) rows.push({ label: "Odcinek", value: `${photo.stageCode} ${photo.stageName ?? ""}`.trim() });
+  if (photo.stageCode) rows.push({ label: "Miejsce", value: `${photo.stageCode} ${photo.stageName ?? ""}`.trim() });
   if (photo.capturedAt) rows.push({ label: "Czas", value: formatWarsaw(new Date(photo.capturedAt)) });
   if (photo.caption) rows.push({ label: "Podpis", value: photo.caption });
   return rows;
@@ -188,7 +194,7 @@ function InfoPlate({ photo, eventSlug, viewportWidth }: { photo: PhotoCard; even
           {rows.length > 0 ? (
             <dl className="mt-3 space-y-1.5 text-sm">
               {rows.map((row) => (
-                <div key={row.label} className="grid grid-cols-[4.5rem_1fr] gap-2">
+                <div key={row.label} className="grid grid-cols-[5.5rem_1fr] gap-2">
                   <dt className="text-muted">{row.label}</dt>
                   <dd>{row.value}</dd>
                 </div>
@@ -206,12 +212,21 @@ function InfoPlate({ photo, eventSlug, viewportWidth }: { photo: PhotoCard; even
             ) : null}
             {photo.stageSlug ? (
               <Link className="underline decoration-accent underline-offset-4" href={withQuery(`/${eventSlug}`, emptyQuery, { stage: photo.stageSlug })}>
-                Ten odcinek
+                To miejsce
               </Link>
             ) : null}
-            {photo.startNumber != null ? (
+            {photo.spectators ? (
+              <Link className="underline decoration-accent underline-offset-4" href={withQuery(`/${eventSlug}`, emptyQuery, { crew: spectatorsCrew })}>
+                Kibice
+              </Link>
+            ) : photo.startNumber != null ? (
               <Link className="underline decoration-accent underline-offset-4" href={withQuery(`/${eventSlug}`, emptyQuery, { crew: String(photo.startNumber) })}>
                 Ta załoga
+              </Link>
+            ) : null}
+            {photo.carSlug ? (
+              <Link className="underline decoration-accent underline-offset-4" href={withQuery(`/${eventSlug}`, emptyQuery, { car: photo.carSlug })}>
+                To auto
               </Link>
             ) : null}
           </div>

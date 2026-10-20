@@ -25,7 +25,7 @@ export function buildTimeline(photos: PhotoCard[]) {
     if (!stage) {
       stage = {
         key: stageKey,
-        label: photo.stageCode ? `${photo.stageCode} ${photo.stageName ?? ""}`.trim() : "Bez odcinka",
+        label: photo.stageCode ? `${photo.stageCode} ${photo.stageName ?? ""}`.trim() : "Bez miejsca",
         photos: [],
       };
       day.stages.push(stage);

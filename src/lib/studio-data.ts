@@ -1,7 +1,7 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
-import { authors, competitions, crewEntries, events, galleries, people, photos, stages } from "@/db/schema";
+import { authors, cars, competitions, crewEntries, events, galleries, people, photos, stages } from "@/db/schema";
 import { derivativeUrl } from "./storage";
 import { dateToWarsawInput } from "./time";
 
@@ -70,7 +70,26 @@ export async function getDesk(galleryId: string) {
       .where(eq(competitions.eventId, gallery.eventId))
       .orderBy(asc(competitions.position), asc(competitions.name)),
     listAuthors(),
-    getDb().select().from(photos).where(eq(photos.galleryId, gallery.id)).orderBy(desc(photos.createdAt)),
+    getDb()
+      .select({
+        id: photos.id,
+        status: photos.status,
+        thumbKey: photos.thumbKey,
+        width: photos.width,
+        height: photos.height,
+        caption: photos.caption,
+        capturedAt: photos.capturedAt,
+        latitude: photos.latitude,
+        longitude: photos.longitude,
+        stageId: photos.stageId,
+        crewEntryId: photos.crewEntryId,
+        spectators: photos.spectators,
+        carName: cars.name,
+      })
+      .from(photos)
+      .leftJoin(cars, eq(photos.carId, cars.id))
+      .where(eq(photos.galleryId, gallery.id))
+      .orderBy(desc(photos.createdAt)),
   ]);
 
   return {
@@ -101,6 +120,8 @@ export async function getDesk(galleryId: string) {
       longitude: photo.longitude,
       stageId: photo.stageId,
       crewEntryId: photo.crewEntryId,
+      spectators: photo.spectators,
+      carName: photo.carName,
     })),
   };
 }

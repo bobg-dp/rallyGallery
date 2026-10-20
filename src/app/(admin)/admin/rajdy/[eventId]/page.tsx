@@ -68,7 +68,7 @@ export default async function Page({
         </div>
         <ConfirmSubmit
           action={deleteEvent.bind(null, event.id)}
-          message="Usunąć ten rajd razem ze zdjęciami, odcinkami i listą startową?"
+          message="Usunąć ten rajd razem ze zdjęciami, miejscami i listą startową?"
           className={btnDanger}
         >
           Usuń rajd
@@ -93,7 +93,8 @@ export default async function Page({
       </ActionForm>
 
       <section className="space-y-3">
-        <h2 className="font-display text-2xl">Odcinki</h2>
+        <h2 className="font-display text-2xl">Miejsca</h2>
+        <p className="max-w-xl text-sm text-muted">Odcinek specjalny, park serwisowy, meta albo inne miejsce na trasie.</p>
         <ul className="space-y-2">
           {stageRows.map((stage) => (
             <li key={stage.id} className="flex items-center justify-between rounded-lg border border-line bg-panel px-3 py-2 text-sm">
@@ -108,9 +109,9 @@ export default async function Page({
             </li>
           ))}
         </ul>
-        <ActionForm action={createStage.bind(null, event.id)} submit="Dodaj odcinek" className="grid gap-3 md:grid-cols-4">
+        <ActionForm action={createStage.bind(null, event.id)} submit="Dodaj miejsce" className="grid gap-3 md:grid-cols-4">
           <Field label="Kod">
-            <TextInput name="code" placeholder="OS 1" required />
+            <TextInput name="code" placeholder="OS 1 albo PS" required />
           </Field>
           <Field label="Nazwa">
             <TextInput name="name" required />

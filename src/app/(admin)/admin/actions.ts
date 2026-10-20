@@ -158,7 +158,7 @@ export async function createStage(eventId: string, _prev: FormState, formData: F
   const name = readString(formData, "name");
   const dayNumber = Number(readString(formData, "dayNumber") || "1");
   const position = Number(readString(formData, "position") || "0");
-  if (!code || !name) return { error: "Podaj kod i nazwę odcinka." };
+  if (!code || !name) return { error: "Podaj kod i nazwę miejsca." };
   const slug = await uniqueSlug(code, async (candidate) => {
     const row = await getDb().query.stages.findFirst({
       where: and(eq(stages.eventId, eventId), eq(stages.slug, candidate)),
@@ -180,7 +180,7 @@ export async function createStage(eventId: string, _prev: FormState, formData: F
 export async function deleteStage(eventId: string, stageId: string) {
   await requireAdmin();
   const used = await getDb().query.photos.findFirst({ where: eq(photos.stageId, stageId) });
-  if (used) redirect(eventPath(eventId, "Ten odcinek ma już zdjęcia."));
+  if (used) redirect(eventPath(eventId, "To miejsce ma już zdjęcia."));
   await getDb().delete(stages).where(and(eq(stages.id, stageId), eq(stages.eventId, eventId)));
   revalidatePath(`/admin/rajdy/${eventId}`);
 }

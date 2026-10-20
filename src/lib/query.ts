@@ -1,3 +1,5 @@
+export const spectatorsCrew = "kibice";
+
 export type PublicQuery = {
   view: "all" | "latest" | "galleries";
   display: "grid" | "map" | "timeline";
@@ -5,6 +7,7 @@ export type PublicQuery = {
   stage?: string;
   q?: string;
   className?: string;
+  car?: string;
   competition?: string;
   author?: string;
   crew?: string;
@@ -26,6 +29,7 @@ export function parsePublicQuery(searchParams: Record<string, string | string[] 
     stage: one("stage"),
     q: one("q"),
     className: one("klasa"),
+    car: one("auto"),
     competition: one("typ"),
     author: one("author"),
     crew: one("crew"),
@@ -42,6 +46,7 @@ export function withQuery(path: string, query: PublicQuery, patch: Partial<Publi
   if (next.stage) params.set("stage", next.stage);
   if (next.q) params.set("q", next.q);
   if (next.className) params.set("klasa", next.className);
+  if (next.car) params.set("auto", next.car);
   if (next.competition) params.set("typ", next.competition);
   if (next.author) params.set("author", next.author);
   if (next.crew) params.set("crew", next.crew);

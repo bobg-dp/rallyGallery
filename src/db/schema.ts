@@ -1,6 +1,7 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  boolean,
   date,
   doublePrecision,
   index,
@@ -143,6 +144,17 @@ export const galleries = pgTable(
   (table) => [uniqueIndex("galleries_event_slug").on(table.eventId, table.slug)],
 );
 
+export const cars = pgTable(
+  "cars",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("cars_name_lower_idx").on(sql`lower(${table.name})`)],
+);
+
 export const photos = pgTable(
   "photos",
   {
@@ -152,6 +164,8 @@ export const photos = pgTable(
       .references(() => galleries.id, { onDelete: "cascade" }),
     stageId: uuid("stage_id").references(() => stages.id, { onDelete: "restrict" }),
     crewEntryId: uuid("crew_entry_id").references(() => crewEntries.id, { onDelete: "restrict" }),
+    carId: uuid("car_id").references(() => cars.id, { onDelete: "set null" }),
+    spectators: boolean("spectators").notNull().default(false),
     caption: text("caption"),
     capturedAt: timestamp("captured_at", { withTimezone: true }),
     latitude: doublePrecision("latitude"),
@@ -172,6 +186,11 @@ export const photos = pgTable(
     index("photos_status_idx").on(table.status),
   ],
 );
+
+export const guests = pgTable("guests", {
+  id: uuid("id").primaryKey(),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
@@ -228,4 +247,5 @@ export const photosRelations = relations(photos, ({ one }) => ({
   gallery: one(galleries, { fields: [photos.galleryId], references: [galleries.id] }),
   stage: one(stages, { fields: [photos.stageId], references: [stages.id] }),
   crew: one(crewEntries, { fields: [photos.crewEntryId], references: [crewEntries.id] }),
+  car: one(cars, { fields: [photos.carId], references: [cars.id] }),
 }));

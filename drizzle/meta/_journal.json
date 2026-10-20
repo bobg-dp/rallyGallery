@@ -22,6 +22,27 @@
       "when": 1792432067412,
       "tag": "0002_colorful_aqueduct",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792506524226,
+      "tag": "0003_normal_screwball",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792512325267,
+      "tag": "0004_cold_micromacro",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792512927610,
+      "tag": "0005_guest_counter",
+      "breakpoints": true
     }
   ]
 }
