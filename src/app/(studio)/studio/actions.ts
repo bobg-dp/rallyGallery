@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
@@ -11,6 +11,7 @@ import { eventSlugTaken, findOrCreateCar, findOrCreatePerson, normalizeCarName, 
 import { deleteObject, photoKeys } from "@/lib/storage";
 import { uniqueSlug } from "@/lib/slug";
 import { spectatorsCrew } from "@/lib/query";
+import { normalizeStartNumber, startNumberError, startNumberKey } from "@/lib/start-number";
 import { warsawLocalToDate } from "@/lib/time";
 
 async function crewAssignment(eventId: string, value: string) {
@@ -98,17 +99,16 @@ export async function createCrew(galleryId: string, _prev: FormState, formData: 
   await requireUser();
   const gallery = await getDb().query.galleries.findFirst({ where: eq(galleries.id, galleryId) });
   if (!gallery) return { error: "Nie ma takiej galerii." };
-  const startNumber = Number(readString(formData, "startNumber"));
+  const startNumber = normalizeStartNumber(readString(formData, "startNumber"));
   const driver = readString(formData, "driver");
   const codriver = readString(formData, "codriver");
   const className = readString(formData, "className");
   const car = readString(formData, "car");
-  if (!Number.isInteger(startNumber) || startNumber < 1 || startNumber > 999) {
-    return { error: "Podaj numer startowy." };
-  }
+  const numberError = startNumberError(startNumber);
+  if (numberError) return { error: numberError };
   if (!driver || !className || !car) return { error: "Uzupełnij kierowcę, klasę i auto." };
   const taken = await getDb().query.crewEntries.findFirst({
-    where: and(eq(crewEntries.eventId, gallery.eventId), eq(crewEntries.startNumber, startNumber)),
+    where: and(eq(crewEntries.eventId, gallery.eventId), sql`lower(${crewEntries.startNumber}) = ${startNumberKey(startNumber)}`),
   });
   if (taken) return { error: "Ten numer startowy już jest na liście." };
   const driverId = await findOrCreatePerson(driver);

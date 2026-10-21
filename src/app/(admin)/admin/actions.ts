@@ -14,6 +14,7 @@ import { findOrCreatePerson, slugTaken } from "@/lib/records";
 import { parseStartListCsv } from "@/lib/start-list-csv";
 import { deleteObject } from "@/lib/storage";
 import { slugify, uniqueSlug } from "@/lib/slug";
+import { normalizeStartNumber, startNumberError, startNumberKey } from "@/lib/start-number";
 
 function eventPath(eventId: string, error?: string) {
   return error ? `/admin/rajdy/${eventId}?error=${encodeURIComponent(error)}` : `/admin/rajdy/${eventId}`;
@@ -244,15 +245,16 @@ export async function setCrewCompetition(eventId: string, crewId: string, _prev:
 
 export async function createCrewEntry(eventId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
-  const startNumber = Number(readString(formData, "startNumber"));
+  const startNumber = normalizeStartNumber(readString(formData, "startNumber"));
   const driver = readString(formData, "driver");
   const codriver = readString(formData, "codriver");
   const className = readString(formData, "className");
   const car = readString(formData, "car");
-  if (!Number.isInteger(startNumber) || startNumber < 1) return { error: "Podaj numer startowy." };
+  const numberError = startNumberError(startNumber);
+  if (numberError) return { error: numberError };
   if (!driver || !className || !car) return { error: "Uzupełnij kierowcę, klasę i auto." };
   const taken = await getDb().query.crewEntries.findFirst({
-    where: and(eq(crewEntries.eventId, eventId), eq(crewEntries.startNumber, startNumber)),
+    where: and(eq(crewEntries.eventId, eventId), sql`lower(${crewEntries.startNumber}) = ${startNumberKey(startNumber)}`),
   });
   if (taken) return { error: "Ten numer startowy już jest na liście." };
   const driverId = await findOrCreatePerson(driver);
@@ -300,9 +302,9 @@ export async function importCrewEntries(eventId: string, _prev: FormState, formD
     .select({ startNumber: crewEntries.startNumber })
     .from(crewEntries)
     .where(eq(crewEntries.eventId, eventId));
-  const taken = new Set(existing.map((row) => row.startNumber));
-  const fresh = parsed.rows.filter((row) => !taken.has(row.startNumber));
-  const skipped = parsed.rows.filter((row) => taken.has(row.startNumber)).map((row) => row.startNumber);
+  const taken = new Set(existing.map((row) => startNumberKey(row.startNumber)));
+  const fresh = parsed.rows.filter((row) => !taken.has(startNumberKey(row.startNumber)));
+  const skipped = parsed.rows.filter((row) => taken.has(startNumberKey(row.startNumber))).map((row) => row.startNumber);
   const samePerson = fresh.find((row) => row.codriver && slugify(row.driver) === slugify(row.codriver));
   if (samePerson) return { error: `Wiersz ${samePerson.line}: kierowca i pilot muszą być różnymi osobami.` };
 

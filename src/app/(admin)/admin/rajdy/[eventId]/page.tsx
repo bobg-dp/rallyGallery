@@ -8,6 +8,7 @@ import { ActionForm } from "@/components/action-form";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { btnDanger } from "@/components/styles";
 import { Field, SelectInput, TextInput } from "@/components/field";
+import { startNumberOrder } from "@/lib/start-number";
 import { derivativeUrl } from "@/lib/storage";
 import { createCompetition, createCrewEntry, createStage, deleteCompetition, deleteCrewEntry, deleteEvent, deleteEventPhoto, deleteStage, importCrewEntries, setCrewCompetition, updateEvent } from "../../actions";
 
@@ -42,7 +43,7 @@ export default async function Page({
       .innerJoin(people, eq(crewEntries.driverId, people.id))
       .leftJoin(codrivers, eq(crewEntries.codriverId, codrivers.id))
       .where(eq(crewEntries.eventId, eventId))
-      .orderBy(asc(crewEntries.startNumber)),
+      .orderBy(...startNumberOrder(crewEntries.startNumber)),
     getDb()
       .select({
         id: photos.id,
@@ -205,7 +206,7 @@ export default async function Page({
         </ActionForm>
         <ActionForm action={createCrewEntry.bind(null, event.id)} submit="Dodaj załogę" className="grid gap-3 md:grid-cols-2">
           <Field label="Numer">
-            <TextInput name="startNumber" inputMode="numeric" required />
+            <TextInput name="startNumber" placeholder="1, A albo 000kjs" required />
           </Field>
           <Field label="Klasa">
             <TextInput name="className" required />

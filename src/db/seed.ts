@@ -48,9 +48,9 @@ async function ensureDemoCompetitions(db: AppDb) {
   const event = await db.query.events.findFirst({ where: eq(events.slug, "rajd-swidnicki-2026") });
   if (!event) return;
   const specs = [
-    { name: "Rajd Okręgowy", slug: "rajd-okregowy", position: 1, numbers: [1] },
-    { name: "Rally Sprint", slug: "rally-sprint", position: 2, numbers: [7] },
-    { name: "KJS", slug: "kjs", position: 3, numbers: [14] },
+    { name: "Rajd Okręgowy", slug: "rajd-okregowy", position: 1, numbers: ["1"] },
+    { name: "Rally Sprint", slug: "rally-sprint", position: 2, numbers: ["7"] },
+    { name: "KJS", slug: "kjs", position: 3, numbers: ["14"] },
   ];
   for (const spec of specs) {
     let row = await db.query.competitions.findFirst({
@@ -114,9 +114,9 @@ async function main() {
     }
 
     const crews = [
-      { startNumber: 1, driver: "Jan Kowalski", codriver: "Anna Nowak", className: "RC2", car: "Toyota GR Yaris" },
-      { startNumber: 7, driver: "Piotr Wójcik", codriver: "Ewa Maj", className: "RC2", car: "Škoda Fabia RS" },
-      { startNumber: 14, driver: "Marek Lis", codriver: "", className: "RC4", car: "Ford Fiesta" },
+      { startNumber: "1", driver: "Jan Kowalski", codriver: "Anna Nowak", className: "RC2", car: "Toyota GR Yaris" },
+      { startNumber: "7", driver: "Piotr Wójcik", codriver: "Ewa Maj", className: "RC2", car: "Škoda Fabia RS" },
+      { startNumber: "14", driver: "Marek Lis", codriver: "", className: "RC4", car: "Ford Fiesta" },
     ];
     const crewRows = [];
     for (const crew of crews) {

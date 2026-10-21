@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { authors, cars, competitions, crewEntries, events, galleries, people, photos, series, stages } from "@/db/schema";
 import { derivativeUrl } from "./storage";
 import { spectatorsCrew, type PublicQuery } from "./query";
+import { startNumberOrder } from "./start-number";
 
 const drivers = alias(people, "drivers");
 const codrivers = alias(people, "codrivers");
@@ -24,7 +25,7 @@ export type PhotoCard = {
   stageName: string | null;
   stagePosition: number | null;
   dayNumber: number | null;
-  startNumber: number | null;
+  startNumber: string | null;
   driverName: string | null;
   codriverName: string | null;
   car: string | null;
@@ -113,7 +114,7 @@ export async function getEventBundle(slug: string) {
       .innerJoin(drivers, eq(crewEntries.driverId, drivers.id))
       .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
       .where(eq(crewEntries.eventId, event.id))
-      .orderBy(asc(crewEntries.startNumber)),
+      .orderBy(...startNumberOrder(crewEntries.startNumber)),
     getDb()
       .selectDistinct({ className: crewEntries.className, competitionSlug: competitions.slug })
       .from(crewEntries)
@@ -173,15 +174,10 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
   if (query.car) filters.push(eq(cars.slug, query.car));
   if (query.competition) filters.push(eq(competitions.slug, query.competition));
   if (query.crew === spectatorsCrew) filters.push(eq(photos.spectators, true));
-  else if (query.crew && /^\d+$/.test(query.crew)) filters.push(eq(crewEntries.startNumber, Number(query.crew)));
+  else if (query.crew) filters.push(sql`lower(${crewEntries.startNumber}) = ${query.crew.toLocaleLowerCase("pl")}`);
   if (query.q) {
     const like = `%${query.q.replace(/[%_]/g, "")}%`;
-    const number = /^\d+$/.test(query.q) ? Number(query.q) : null;
-    const match = or(
-      number != null ? eq(crewEntries.startNumber, number) : undefined,
-      ilike(drivers.name, like),
-      ilike(codrivers.name, like),
-    );
+    const match = or(ilike(crewEntries.startNumber, like), ilike(drivers.name, like), ilike(codrivers.name, like));
     if (match) filters.push(match);
   }
 
@@ -192,7 +188,7 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
       : query.sort === "stage"
         ? [sql`${stages.position} asc nulls last`, captured, asc(photos.createdAt)]
         : query.sort === "crew"
-          ? [sql`${crewEntries.startNumber} asc nulls last`, captured]
+          ? [...startNumberOrder(crewEntries.startNumber), captured]
           : query.sort === "author"
             ? [asc(authors.name), captured]
             : [captured, asc(photos.createdAt)];

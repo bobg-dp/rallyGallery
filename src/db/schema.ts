@@ -106,7 +106,7 @@ export const crewEntries = pgTable(
       .notNull()
       .references(() => events.id, { onDelete: "cascade" }),
     competitionId: uuid("competition_id").references(() => competitions.id, { onDelete: "restrict" }),
-    startNumber: integer("start_number").notNull(),
+    startNumber: text("start_number").notNull(),
     className: text("class_name").notNull(),
     car: text("car").notNull(),
     driverId: uuid("driver_id")
@@ -114,7 +114,7 @@ export const crewEntries = pgTable(
       .references(() => people.id, { onDelete: "restrict" }),
     codriverId: uuid("codriver_id").references(() => people.id, { onDelete: "restrict" }),
   },
-  (table) => [uniqueIndex("crew_event_number").on(table.eventId, table.startNumber)],
+  (table) => [uniqueIndex("crew_event_number").on(table.eventId, sql`lower(${table.startNumber})`)],
 );
 
 export const authors = pgTable("authors", {

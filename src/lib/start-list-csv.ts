@@ -1,8 +1,9 @@
 import { slugify } from "./slug";
+import { normalizeStartNumber, startNumberError, startNumberKey } from "./start-number";
 
 export type StartListRow = {
   line: number;
-  startNumber: number;
+  startNumber: string;
   driver: string;
   codriver: string;
   className: string;
@@ -37,26 +38,26 @@ export function parseStartListCsv(text: string): { rows: StartListRow[] } | { er
   }
 
   const rows: StartListRow[] = [];
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   for (const record of table.slice(headerIndex + 1)) {
     if (record.cells.every((cell) => !cell)) continue;
     const cell = (field: Field) => record.cells[columns.get(field) ?? -1]?.trim() ?? "";
-    const startNumber = Number(cell("startNumber"));
+    const startNumber = normalizeStartNumber(cell("startNumber"));
     const driver = cell("driver").replace(/\s+/g, " ");
     const codriver = cell("codriver").replace(/\s+/g, " ");
     const className = cell("className").replace(/\s+/g, " ");
     const car = cell("car").replace(/\s+/g, " ");
-    if (!Number.isInteger(startNumber) || startNumber < 1) {
-      return { error: `Wiersz ${record.line}: numer startowy jest niepoprawny.` };
-    }
+    const numberError = startNumberError(startNumber);
+    if (numberError) return { error: `Wiersz ${record.line}: ${numberError.charAt(0).toLowerCase()}${numberError.slice(1)}` };
     if (!driver || !className || !car) {
       return { error: `Wiersz ${record.line}: uzupełnij kierowcę, klasę i samochód.` };
     }
     if (driver.length > 120 || codriver.length > 120 || className.length > 80 || car.length > 120) {
       return { error: `Wiersz ${record.line}: któreś pole jest za długie.` };
     }
-    if (seen.has(startNumber)) return { error: `Wiersz ${record.line}: numer ${startNumber} powtarza się w pliku.` };
-    seen.add(startNumber);
+    const key = startNumberKey(startNumber);
+    if (seen.has(key)) return { error: `Wiersz ${record.line}: numer ${startNumber} powtarza się w pliku.` };
+    seen.add(key);
     rows.push({ line: record.line, startNumber, driver, codriver, className, car });
   }
   if (!rows.length) return { error: "W pliku nie ma załóg." };

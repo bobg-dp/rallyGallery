@@ -27,7 +27,7 @@ const PinMap = dynamic(() => import("./pin-map").then((mod) => mod.PinMap), { ss
 type Stage = { id: string; code: string; name: string };
 type Crew = {
   id: string;
-  startNumber: number;
+  startNumber: string;
   className: string;
   car: string;
   driverName: string;
@@ -159,7 +159,7 @@ export function Desk({
         <div className="mt-3">
           <ActionForm action={createCrew.bind(null, gallery.id)} submit="Dodaj załogę" className="grid gap-3 md:grid-cols-2">
             <Field label="Numer">
-              <TextInput name="startNumber" inputMode="numeric" />
+              <TextInput name="startNumber" placeholder="1, A albo 000kjs" />
             </Field>
             <Field label="Klasa">
               <TextInput name="className" />

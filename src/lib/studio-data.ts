@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { authors, cars, competitions, crewEntries, events, galleries, people, photos, stages } from "@/db/schema";
 import { derivativeUrl } from "./storage";
+import { startNumberOrder } from "./start-number";
 import { dateToWarsawInput } from "./time";
 
 const codrivers = alias(people, "codrivers");
@@ -63,7 +64,7 @@ export async function getDesk(galleryId: string) {
       .leftJoin(codrivers, eq(crewEntries.codriverId, codrivers.id))
       .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
       .where(eq(crewEntries.eventId, gallery.eventId))
-      .orderBy(asc(crewEntries.startNumber)),
+      .orderBy(...startNumberOrder(crewEntries.startNumber)),
     getDb()
       .select({ id: competitions.id, name: competitions.name })
       .from(competitions)
