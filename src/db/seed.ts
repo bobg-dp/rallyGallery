@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import sharp from "sharp";
 import { createDb, type AppDb } from "./index";
 import { authors, competitions, crewEntries, events, galleries, people, photoCrews, photos, series, stages, users } from "./schema";
-import { processJpeg } from "../lib/images";
+import { processPhoto } from "../lib/images";
 import { photoKeys, writeObject } from "../lib/storage";
 import { isLogin, normalizeLogin } from "../lib/login";
 import { slugify, uniqueSlug } from "../lib/slug";
@@ -182,7 +182,7 @@ async function main() {
     for (const shot of shots) {
       const id = crypto.randomUUID();
       const jpeg = await frame(shot.label, shot.w, shot.h, shot.from, shot.to);
-      const processed = await processJpeg(jpeg);
+      const processed = await processPhoto(jpeg);
       const keys = photoKeys(id);
       await writeObject(keys.originalKey, jpeg, "image/jpeg");
       await writeObject(keys.thumbKey, processed.thumb, "image/webp");

@@ -2,9 +2,9 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
 import { events, galleries, photos } from "@/db/schema";
-import { processJpeg } from "@/lib/images";
+import { processPhoto } from "@/lib/images";
 import { getCurrentUser } from "@/lib/current-user";
-import { deleteObject, photoKeys, readObject, writeObject } from "@/lib/storage";
+import { deleteObject, originalObjectKey, photoKeys, readObject, writeObject, type OriginalExt } from "@/lib/storage";
 import { verifyUpload } from "@/lib/upload-token";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -30,11 +30,17 @@ export async function POST(
   const gallery = await getDb().query.galleries.findFirst({ where: eq(galleries.id, galleryId) });
   if (!gallery) return Response.json({ error: "Nie ma takiej galerii." }, { status: 404 });
 
-  const keys = photoKeys(photoId);
-  let processed: Awaited<ReturnType<typeof processJpeg>>;
+  let uploaded: { key: string; body: Buffer };
   try {
-    const original = await readObject(keys.originalKey);
-    processed = await processJpeg(original);
+    uploaded = await readUploadedOriginal(photoId);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Nie udało się odczytać pliku.";
+    return Response.json({ error: message }, { status: 400 });
+  }
+  const keys = { ...photoKeys(photoId), originalKey: uploaded.key };
+  let processed: Awaited<ReturnType<typeof processPhoto>>;
+  try {
+    processed = await processPhoto(uploaded.body);
     await writeObject(keys.thumbKey, processed.thumb, "image/webp");
     await writeObject(keys.gridKey, processed.grid, "image/webp");
     await writeObject(keys.viewKey, processed.view, "image/webp");
@@ -66,4 +72,17 @@ export async function POST(
   revalidatePath(`/studio/${galleryId}`);
   if (event) revalidatePath(`/${event.slug}`);
   return Response.json({ ok: true });
+}
+
+async function readUploadedOriginal(photoId: string) {
+  const exts: OriginalExt[] = ["jpg", "webp"];
+  for (const ext of exts) {
+    const key = originalObjectKey(photoId, ext);
+    try {
+      return { key, body: await readObject(key) };
+    } catch {
+      continue;
+    }
+  }
+  throw new Error("Nie udało się odczytać pliku.");
 }

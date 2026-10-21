@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { writeObject } from "@/lib/storage";
+import { originalContentType, originalObjectKey, writeObject, type OriginalExt } from "@/lib/storage";
 import { verifyUpload } from "@/lib/upload-token";
 
 const MAX_BYTES = 40 * 1024 * 1024;
@@ -16,6 +16,7 @@ export async function PUT(request: NextRequest) {
   if (length > MAX_BYTES) return Response.json({ error: "Plik jest większy niż 40 MB." }, { status: 413 });
   const body = Buffer.from(await request.arrayBuffer());
   if (body.length > MAX_BYTES) return Response.json({ error: "Plik jest większy niż 40 MB." }, { status: 413 });
-  await writeObject(`originals/${photoId}.jpg`, body, "image/jpeg");
+  const ext: OriginalExt = request.nextUrl.searchParams.get("ext") === "webp" ? "webp" : "jpg";
+  await writeObject(originalObjectKey(photoId, ext), body, originalContentType(ext));
   return new Response(null, { status: 204 });
 }

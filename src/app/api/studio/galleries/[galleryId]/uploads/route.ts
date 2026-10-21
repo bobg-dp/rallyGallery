@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { galleries } from "@/db/schema";
 import { getCurrentUser } from "@/lib/current-user";
-import { createOriginalUploadUrl } from "@/lib/storage";
+import { createOriginalUploadUrl, originalExtFromName } from "@/lib/storage";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -17,12 +17,13 @@ export async function POST(request: Request, context: { params: Promise<{ galler
   const body = (await request.json().catch(() => null)) as { filename?: string; byteSize?: number } | null;
   const filename = body?.filename ?? "";
   const byteSize = Number(body?.byteSize ?? 0);
-  if (!/\.jpe?g$/i.test(filename)) return Response.json({ error: "Tylko pliki JPEG." }, { status: 400 });
+  const ext = originalExtFromName(filename);
+  if (!ext) return Response.json({ error: "Tylko pliki JPEG i WebP." }, { status: 400 });
   if (!Number.isFinite(byteSize) || byteSize < 1 || byteSize > 40 * 1024 * 1024) {
     return Response.json({ error: "Plik jest większy niż 40 MB." }, { status: 400 });
   }
 
   const photoId = crypto.randomUUID();
-  const upload = await createOriginalUploadUrl(photoId, galleryId);
+  const upload = await createOriginalUploadUrl(photoId, galleryId, ext);
   return Response.json({ photoId, uploadUrl: upload.url, exp: upload.exp, sig: upload.sig });
 }

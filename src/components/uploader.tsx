@@ -29,7 +29,7 @@ export function Uploader({ galleryId }: { galleryId: string }) {
     const put = await fetch(payload.uploadUrl, {
       method: "PUT",
       body: file,
-      headers: { "content-type": "image/jpeg" },
+      headers: { "content-type": file.type === "image/webp" || /\.webp$/i.test(file.name) ? "image/webp" : "image/jpeg" },
     });
     if (!put.ok) throw new Error("Nie udało się wysłać pliku.");
     mark(id, "Obrabiam");
@@ -44,8 +44,12 @@ export function Uploader({ galleryId }: { galleryId: string }) {
   }
 
   async function onFiles(list: FileList | null) {
-    const files = [...(list ?? [])].filter((file) => file.type === "image/jpeg" || /\.jpe?g$/i.test(file.name));
-    if (!files.length) return;
+    const picked = [...(list ?? [])];
+    const files = picked.filter((file) => file.type === "image/jpeg" || file.type === "image/webp" || /\.jpe?g$/i.test(file.name) || /\.webp$/i.test(file.name));
+    if (!files.length) {
+      if (picked.length) setItems([{ id: crypto.randomUUID(), name: picked[0].name, status: "Tylko JPEG albo WebP." }]);
+      return;
+    }
     const next = files.map((file) => ({ id: crypto.randomUUID(), name: file.name, status: "W kolejce" }));
     setItems(next);
     setBusy(true);
@@ -70,14 +74,14 @@ export function Uploader({ galleryId }: { galleryId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl">Zdjęcia</h2>
-          <p className="text-sm text-muted">JPEG, pojedynczo albo serią. Autor tej paczki jest już zapisany.</p>
+          <p className="text-sm text-muted">JPEG albo WebP, pojedynczo albo serią. Autor tej paczki jest już zapisany.</p>
         </div>
         <label className={btnGhost}>
           Wybierz pliki
           <input
             className="sr-only"
             type="file"
-            accept="image/jpeg,.jpg,.jpeg"
+            accept="image/jpeg,.jpg,.jpeg,image/webp,.webp"
             multiple
             disabled={busy}
             onChange={(event) => {

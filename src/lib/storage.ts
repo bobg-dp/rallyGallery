@@ -10,7 +10,23 @@ import path from "node:path";
 import { signUpload } from "./upload-token";
 
 const KEY_PATTERN =
-  /^(originals\/[0-9a-f-]{36}\.jpg|derivatives\/[0-9a-f-]{36}\/(thumb|grid|view)\.webp)$/;
+  /^(originals\/[0-9a-f-]{36}\.(?:jpg|webp)|derivatives\/[0-9a-f-]{36}\/(thumb|grid|view)\.webp)$/;
+
+export type OriginalExt = "jpg" | "webp";
+
+export function originalExtFromName(filename: string): OriginalExt | null {
+  if (/\.webp$/i.test(filename)) return "webp";
+  if (/\.jpe?g$/i.test(filename)) return "jpg";
+  return null;
+}
+
+export function originalContentType(ext: OriginalExt) {
+  return ext === "webp" ? "image/webp" : "image/jpeg";
+}
+
+export function originalObjectKey(photoId: string, ext: OriginalExt) {
+  return `originals/${photoId}.${ext}`;
+}
 
 export function usingR2() {
   return Boolean(
@@ -102,8 +118,8 @@ export async function deleteObject(key: string) {
   await rm(localPath(key), { force: true });
 }
 
-export async function createOriginalUploadUrl(photoId: string, galleryId: string) {
-  const key = `originals/${photoId}.jpg`;
+export async function createOriginalUploadUrl(photoId: string, galleryId: string, ext: OriginalExt = "jpg") {
+  const key = originalObjectKey(photoId, ext);
   const exp = Date.now() + 15 * 60 * 1000;
   const sig = signUpload(photoId, galleryId, exp);
   if (usingR2()) {
@@ -112,7 +128,7 @@ export async function createOriginalUploadUrl(photoId: string, galleryId: string
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET!,
         Key: key,
-        ContentType: "image/jpeg",
+        ContentType: originalContentType(ext),
       }),
       { expiresIn: 900 },
     );
@@ -123,13 +139,14 @@ export async function createOriginalUploadUrl(photoId: string, galleryId: string
     galleryId,
     exp: String(exp),
     sig,
+    ext,
   });
   return { url: `/api/storage/upload?${params.toString()}`, key, exp, sig };
 }
 
-export function photoKeys(photoId: string) {
+export function photoKeys(photoId: string, ext: OriginalExt = "jpg") {
   return {
-    originalKey: `originals/${photoId}.jpg`,
+    originalKey: originalObjectKey(photoId, ext),
     thumbKey: `derivatives/${photoId}/thumb.webp`,
     gridKey: `derivatives/${photoId}/grid.webp`,
     viewKey: `derivatives/${photoId}/view.webp`,

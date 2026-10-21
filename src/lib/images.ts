@@ -23,11 +23,11 @@ async function readCapture(buffer: Buffer) {
   return { capturedAt, latitude, longitude };
 }
 
-export async function processJpeg(buffer: Buffer) {
+export async function processPhoto(buffer: Buffer) {
   if (buffer.length > MAX_BYTES) throw new Error("Plik jest większy niż 40 MB.");
   const meta = await sharp(buffer, { failOn: "error" }).rotate().metadata();
-  if (meta.format !== "jpeg" || !meta.width || !meta.height) {
-    throw new Error("Tylko pliki JPEG.");
+  if ((meta.format !== "jpeg" && meta.format !== "webp") || !meta.width || !meta.height) {
+    throw new Error("Tylko pliki JPEG i WebP.");
   }
 
   const resize = (width: number, quality: number) =>
