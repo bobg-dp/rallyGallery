@@ -48,10 +48,8 @@ function layoutRows(photos: PhotoCard[], containerWidth: number, targetHeight: n
   return rows;
 }
 
-function crewLine(photo: PhotoCard) {
-  if (photo.startNumber == null) return null;
-  const names = [photo.driverName, photo.codriverName].filter(Boolean).join(" / ");
-  return names ? `nr ${photo.startNumber} · ${names}` : `nr ${photo.startNumber}`;
+function uniqueText(values: (string | null | undefined)[]) {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
 function toFrame(rect: DOMRect): Frame {
@@ -102,17 +100,22 @@ function flightTransform(origin: Frame, dest: Frame) {
 
 function facts(photo: PhotoCard) {
   const rows: { label: string; value: string }[] = [];
-  const crew = crewLine(photo);
   if (photo.spectators) rows.push({ label: "Zawodnicy", value: "Kibice" });
-  else if (crew) rows.push({ label: "Załoga", value: crew });
+  for (const crew of photo.crews) {
+    const names = [crew.driverName, crew.codriverName].filter(Boolean).join(" / ");
+    rows.push({ label: "Załoga", value: names ? `nr ${crew.startNumber} · ${names}` : `nr ${crew.startNumber}` });
+  }
+  const classes = uniqueText(photo.crews.map((crew) => crew.className));
+  const types = uniqueText(photo.crews.map((crew) => crew.competitionName));
+  const crewCars = uniqueText(photo.crews.map((crew) => crew.car));
   if (photo.carName) {
     rows.push({ label: "Auto", value: photo.carName });
-    if (photo.className) rows.push({ label: "Klasa", value: photo.className });
-  } else {
-    const car = [photo.car, photo.className].filter(Boolean).join(" · ");
+    if (classes.length) rows.push({ label: "Klasa", value: classes.join(", ") });
+  } else if (crewCars.length === 1) {
+    const car = [crewCars[0], classes.length === 1 ? classes[0] : null].filter(Boolean).join(" · ");
     if (car) rows.push({ label: "Auto", value: car });
   }
-  if (photo.competitionName) rows.push({ label: "Typ", value: photo.competitionName });
+  if (types.length) rows.push({ label: "Typ", value: types.join(", ") });
   if (photo.stageCode) rows.push({ label: "Miejsce", value: `${photo.stageCode} ${photo.stageName ?? ""}`.trim() });
   if (photo.capturedAt) rows.push({ label: "Czas", value: formatWarsaw(new Date(photo.capturedAt)) });
   if (photo.caption) rows.push({ label: "Podpis", value: photo.caption });
@@ -193,8 +196,8 @@ function InfoPlate({ photo, eventSlug, viewportWidth }: { photo: PhotoCard; even
           <p className="font-display text-2xl leading-none">{photo.authorName}</p>
           {rows.length > 0 ? (
             <dl className="mt-3 space-y-1.5 text-sm">
-              {rows.map((row) => (
-                <div key={row.label} className="grid grid-cols-[5.5rem_1fr] gap-2">
+              {rows.map((row, index) => (
+                <div key={`${row.label}-${index}`} className="grid grid-cols-[5.5rem_1fr] gap-2">
                   <dt className="text-muted">{row.label}</dt>
                   <dd>{row.value}</dd>
                 </div>
@@ -219,11 +222,17 @@ function InfoPlate({ photo, eventSlug, viewportWidth }: { photo: PhotoCard; even
               <Link className="underline decoration-accent underline-offset-4" href={withQuery(`/${eventSlug}`, emptyQuery, { crew: spectatorsCrew })}>
                 Kibice
               </Link>
-            ) : photo.startNumber != null ? (
-              <Link className="underline decoration-accent underline-offset-4" href={withQuery(`/${eventSlug}`, emptyQuery, { crew: String(photo.startNumber) })}>
-                Ta załoga
-              </Link>
-            ) : null}
+            ) : (
+              photo.crews.map((crew) => (
+                <Link
+                  key={crew.startNumber}
+                  className="underline decoration-accent underline-offset-4"
+                  href={withQuery(`/${eventSlug}`, emptyQuery, { crew: crew.startNumber })}
+                >
+                  {photo.crews.length === 1 ? "Ta załoga" : `nr ${crew.startNumber}`}
+                </Link>
+              ))
+            )}
             {photo.carSlug ? (
               <Link className="underline decoration-accent underline-offset-4" href={withQuery(`/${eventSlug}`, emptyQuery, { car: photo.carSlug })}>
                 To auto

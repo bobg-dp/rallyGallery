@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import sharp from "sharp";
 import { createDb, type AppDb } from "./index";
-import { authors, competitions, crewEntries, events, galleries, people, photos, series, stages, users } from "./schema";
+import { authors, competitions, crewEntries, events, galleries, people, photoCrews, photos, series, stages, users } from "./schema";
 import { processJpeg } from "../lib/images";
 import { photoKeys, writeObject } from "../lib/storage";
 import { isLogin, normalizeLogin } from "../lib/login";
@@ -193,7 +193,6 @@ async function main() {
         id,
         galleryId: shot.gallery,
         stageId: shot.stage == null ? null : stageRows[shot.stage].id,
-        crewEntryId: shot.crew == null ? null : crewRows[shot.crew].id,
         capturedAt: shot.at ? warsawLocalToDate(shot.at) : null,
         latitude: shot.lat,
         longitude: shot.lng,
@@ -207,6 +206,9 @@ async function main() {
         height: processed.height,
         uploadedById: admin?.id,
       });
+      if (shot.crew != null) {
+        await db.insert(photoCrews).values({ photoId: id, crewEntryId: crewRows[shot.crew].id, position: 0 });
+      }
     }
   } finally {
     await sql.end();

@@ -16,9 +16,9 @@ import {
   setPublished,
   updateGallery,
 } from "@/app/(studio)/studio/actions";
-import { spectatorsCrew } from "@/lib/query";
 import { ActionForm } from "./action-form";
 import { CarField } from "./car-field";
+import { CrewPicker, type CrewOption } from "./crew-picker";
 import { Field, SelectInput, TextInput } from "./field";
 import { btnDanger, btnGhost, btnPrimary } from "./styles";
 
@@ -43,7 +43,7 @@ type Photo = {
   latitude: number | null;
   longitude: number | null;
   stageId: string | null;
-  crewEntryId: string | null;
+  crewEntryIds: string[];
   spectators: boolean;
   carName: string | null;
 };
@@ -76,6 +76,11 @@ export function Desk({
   const [selected, setSelected] = useState<string[]>(photos[0] ? [photos[0].id] : []);
   const [focusedId, setFocusedId] = useState(photos[0]?.id ?? "");
   const [authorMode, setAuthorMode] = useState("existing");
+  const [bulkCrewIds, setBulkCrewIds] = useState<string[]>([]);
+  const [bulkSpectators, setBulkSpectators] = useState(false);
+  const [bulkUnchanged, setBulkUnchanged] = useState(true);
+  const [bulkCar, setBulkCar] = useState("");
+  const [applyCar, setApplyCar] = useState(false);
   const focused = photos.find((photo) => photo.id === focusedId) ?? photos[0];
 
   function toggle(id: string) {
@@ -219,26 +224,30 @@ export function Desk({
             ))}
           </SelectInput>
         </Field>
-        <Field label="Załoga">
-          <SelectInput name="crewEntryId" defaultValue="">
-            <option value="">Bez zmian</option>
-            <option value="clear">Usuń załogę</option>
-            <option value={spectatorsCrew}>Kibice</option>
-            {crews.map((crew) => (
-              <option key={crew.id} value={crew.id}>
-                {crew.startNumber} {crew.driverName}
-                {crew.codriverName ? ` / ${crew.codriverName}` : ""}
-                {crew.competitionName ? ` · ${crew.competitionName}` : ""}
-              </option>
-            ))}
-          </SelectInput>
-        </Field>
+        <div className="block space-y-1.5 text-sm">
+          <span className="text-muted">Zawodnicy</span>
+          <CrewPicker
+            crews={crews}
+            crewIds={bulkCrewIds}
+            spectators={bulkSpectators}
+            unchanged={bulkUnchanged}
+            allowUnchanged
+            onChange={(next) => {
+              setBulkCrewIds(next.crewIds);
+              setBulkSpectators(next.spectators);
+              setBulkUnchanged(next.unchanged);
+              const filled = carForCrews(bulkCar, crews, bulkCrewIds, next);
+              if (filled !== bulkCar || (next.added && next.crewIds.length === 1)) setApplyCar(true);
+              setBulkCar(filled);
+            }}
+          />
+        </div>
         <label className="flex items-center gap-2 text-sm md:col-span-2">
-          <input type="checkbox" name="setCar" />
+          <input type="checkbox" name="setCar" checked={applyCar} onChange={(event) => setApplyCar(event.target.checked)} />
           Ustaw auto
         </label>
         <Field label="Auto">
-          <CarField />
+          <CarField value={bulkCar} onValueChange={setBulkCar} />
         </Field>
         <label className="flex items-center gap-2 text-sm md:col-span-2">
           <input type="checkbox" name="setCaption" />
@@ -268,40 +277,7 @@ export function Desk({
         </div>
         {focused ? (
           <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-            <ActionForm key={focused.id} action={savePhoto.bind(null, gallery.id, focused.id)} submit="Zapisz kadr">
-              <Field label="Miejsce">
-                <SelectInput name="stageId" defaultValue={focused.stageId ?? ""}>
-                  <option value="">Bez miejsca</option>
-                  {stages.map((stage) => (
-                    <option key={stage.id} value={stage.id}>
-                      {stage.code} {stage.name}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-              <Field label="Załoga">
-                <SelectInput name="crewEntryId" defaultValue={focused.spectators ? spectatorsCrew : (focused.crewEntryId ?? "")}>
-                  <option value="">Bez załogi</option>
-                  <option value={spectatorsCrew}>Kibice</option>
-                  {crews.map((crew) => (
-                    <option key={crew.id} value={crew.id}>
-                      {crew.startNumber} {crew.driverName}
-                      {crew.codriverName ? ` / ${crew.codriverName}` : ""}
-                      {crew.competitionName ? ` · ${crew.competitionName}` : ""}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-              <Field label="Auto">
-                <CarField key={focused.id} defaultValue={focused.carName ?? ""} />
-              </Field>
-              <Field label="Czas wykonania">
-                <TextInput name="capturedAt" type="datetime-local" defaultValue={focused.capturedAt} />
-              </Field>
-              <Field label="Podpis">
-                <TextInput name="caption" defaultValue={focused.caption ?? ""} />
-              </Field>
-            </ActionForm>
+            <PhotoForm key={focused.id} galleryId={gallery.id} photo={focused} stages={stages} crews={crews} />
             <button
               type="button"
               className={gallery.heroPhotoId === focused.id ? btnGhost : btnPrimary}
@@ -341,5 +317,74 @@ export function Desk({
         )}
       </div>
     </div>
+  );
+}
+
+function carForCrews(
+  current: string,
+  crews: Crew[],
+  previousIds: string[],
+  next: { crewIds: string[]; added: CrewOption | null; spectators: boolean },
+) {
+  if (next.spectators || next.crewIds.length !== 1) return current;
+  const left = crews.find((crew) => crew.id === next.crewIds[0]);
+  if (!left) return current;
+  if (next.added) return left.car;
+  const previousCars = previousIds.map((id) => crews.find((crew) => crew.id === id)?.car);
+  if (!current.trim() || previousCars.includes(current)) return left.car;
+  return current;
+}
+
+function PhotoForm({
+  galleryId,
+  photo,
+  stages,
+  crews,
+}: {
+  galleryId: string;
+  photo: Photo;
+  stages: Stage[];
+  crews: Crew[];
+}) {
+  const single = photo.crewEntryIds.length === 1 ? crews.find((crew) => crew.id === photo.crewEntryIds[0]) : undefined;
+  const [carName, setCarName] = useState(photo.carName || single?.car || "");
+  const [crewIds, setCrewIds] = useState(photo.crewEntryIds);
+  const [spectators, setSpectators] = useState(photo.spectators);
+
+  return (
+    <ActionForm action={savePhoto.bind(null, galleryId, photo.id)} submit="Zapisz kadr">
+      <Field label="Miejsce">
+        <SelectInput name="stageId" defaultValue={photo.stageId ?? ""}>
+          <option value="">Bez miejsca</option>
+          {stages.map((stage) => (
+            <option key={stage.id} value={stage.id}>
+              {stage.code} {stage.name}
+            </option>
+          ))}
+        </SelectInput>
+      </Field>
+      <div className="block space-y-1.5 text-sm">
+        <span className="text-muted">Zawodnicy</span>
+        <CrewPicker
+          crews={crews}
+          crewIds={crewIds}
+          spectators={spectators}
+          onChange={(next) => {
+            setCrewIds(next.crewIds);
+            setSpectators(next.spectators);
+            setCarName(carForCrews(carName, crews, crewIds, next));
+          }}
+        />
+      </div>
+      <Field label="Auto">
+        <CarField value={carName} onValueChange={setCarName} />
+      </Field>
+      <Field label="Czas wykonania">
+        <TextInput name="capturedAt" type="datetime-local" defaultValue={photo.capturedAt} />
+      </Field>
+      <Field label="Podpis">
+        <TextInput name="caption" defaultValue={photo.caption ?? ""} />
+      </Field>
+    </ActionForm>
   );
 }

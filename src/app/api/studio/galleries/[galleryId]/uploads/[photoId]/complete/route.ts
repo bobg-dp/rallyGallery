@@ -24,7 +24,7 @@ export async function POST(
     return Response.json({ error: "Wgrywanie wygasło. Wyślij plik ponownie." }, { status: 400 });
   }
 
-  const existing = await getDb().query.photos.findFirst({ where: eq(photos.id, photoId) });
+  const [existing] = await getDb().select({ id: photos.id }).from(photos).where(eq(photos.id, photoId)).limit(1);
   if (existing) return Response.json({ ok: true });
 
   const gallery = await getDb().query.galleries.findFirst({ where: eq(galleries.id, galleryId) });

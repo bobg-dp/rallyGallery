@@ -1,13 +1,21 @@
-import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
-import { authors, cars, competitions, crewEntries, events, galleries, people, photos, series, stages } from "@/db/schema";
+import { authors, cars, competitions, crewEntries, events, galleries, people, photoCrews, photos, series, stages } from "@/db/schema";
 import { derivativeUrl } from "./storage";
 import { spectatorsCrew, type PublicQuery } from "./query";
 import { startNumberOrder } from "./start-number";
 
 const drivers = alias(people, "drivers");
-const codrivers = alias(people, "codrivers");
+
+export type PhotoCrew = {
+  startNumber: string;
+  driverName: string;
+  codriverName: string | null;
+  car: string;
+  className: string;
+  competitionName: string | null;
+};
 
 export type PhotoCard = {
   id: string;
@@ -25,15 +33,10 @@ export type PhotoCard = {
   stageName: string | null;
   stagePosition: number | null;
   dayNumber: number | null;
-  startNumber: string | null;
-  driverName: string | null;
-  codriverName: string | null;
-  car: string | null;
+  crews: PhotoCrew[];
   carName: string | null;
   carSlug: string | null;
   spectators: boolean;
-  className: string | null;
-  competitionName: string | null;
   authorName: string;
   authorSlug: string;
   websiteUrl: string | null;
@@ -139,7 +142,8 @@ export async function getEventBundle(slug: string) {
       .from(photos)
       .innerJoin(galleries, eq(photos.galleryId, galleries.id))
       .innerJoin(cars, eq(photos.carId, cars.id))
-      .leftJoin(crewEntries, eq(photos.crewEntryId, crewEntries.id))
+      .leftJoin(photoCrews, eq(photoCrews.photoId, photos.id))
+      .leftJoin(crewEntries, eq(photoCrews.crewEntryId, crewEntries.id))
       .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
       .where(and(eq(galleries.eventId, event.id), eq(photos.status, "published")))
       .orderBy(asc(cars.name)),
@@ -158,9 +162,10 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
   if (scope.type === "inne") {
     const countedInType = query.competition
       ? sql`and exists (
-          select 1 from ${crewEntries} as counted_crew
+          select 1 from ${photoCrews} as counted_link
+          inner join ${crewEntries} as counted_crew on counted_crew.id = counted_link.crew_entry_id
           inner join ${competitions} as counted_competition on counted_competition.id = counted_crew.competition_id
-          where counted_crew.id = counted.crew_entry_id and counted_competition.slug = ${query.competition}
+          where counted_link.photo_id = counted.id and counted_competition.slug = ${query.competition}
         )`
       : sql``;
     filters.push(sql`coalesce((
@@ -170,25 +175,46 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
   }
   if (query.stage) filters.push(eq(stages.slug, query.stage));
   if (query.author) filters.push(eq(authors.slug, query.author));
-  if (query.className) filters.push(eq(crewEntries.className, query.className));
   if (query.car) filters.push(eq(cars.slug, query.car));
-  if (query.competition) filters.push(eq(competitions.slug, query.competition));
   if (query.crew === spectatorsCrew) filters.push(eq(photos.spectators, true));
-  else if (query.crew) filters.push(sql`lower(${crewEntries.startNumber}) = ${query.crew.toLocaleLowerCase("pl")}`);
+  const crewMatch: SQL[] = [];
+  if (query.className) crewMatch.push(eq(crewEntries.className, query.className));
+  if (query.competition) crewMatch.push(eq(competitions.slug, query.competition));
+  if (query.crew && query.crew !== spectatorsCrew) {
+    crewMatch.push(sql`lower(${crewEntries.startNumber}) = ${query.crew.toLocaleLowerCase("pl")}`);
+  }
   if (query.q) {
     const like = `%${query.q.replace(/[%_]/g, "")}%`;
-    const match = or(ilike(crewEntries.startNumber, like), ilike(drivers.name, like), ilike(codrivers.name, like));
-    if (match) filters.push(match);
+    crewMatch.push(sql`(${crewEntries.startNumber} ilike ${like} or drivers.name ilike ${like} or codrivers.name ilike ${like})`);
+  }
+  if (crewMatch.length) {
+    const crewFilter = and(...crewMatch);
+    if (crewFilter) filters.push(sql`exists (
+      select 1 from ${photoCrews}
+      inner join ${crewEntries} on ${crewEntries.id} = ${photoCrews.crewEntryId}
+      left join ${people} drivers on drivers.id = ${crewEntries.driverId}
+      left join ${people} codrivers on codrivers.id = ${crewEntries.codriverId}
+      left join ${competitions} on ${competitions.id} = ${crewEntries.competitionId}
+      where ${photoCrews.photoId} = ${photos.id} and ${crewFilter}
+    )`);
   }
 
   const captured = sql`${photos.capturedAt} asc nulls last`;
+  const primaryNumber = sql`(
+    select ${crewEntries.startNumber}
+    from ${photoCrews}
+    inner join ${crewEntries} on ${crewEntries.id} = ${photoCrews.crewEntryId}
+    where ${photoCrews.photoId} = ${photos.id}
+    order by ${photoCrews.position}
+    limit 1
+  )`;
   const order =
     query.view === "latest" && scope.type === "event"
       ? [desc(photos.publishedAt)]
       : query.sort === "stage"
         ? [sql`${stages.position} asc nulls last`, captured, asc(photos.createdAt)]
         : query.sort === "crew"
-          ? [...startNumberOrder(crewEntries.startNumber), captured]
+          ? [...startNumberOrder(primaryNumber), captured]
           : query.sort === "author"
             ? [asc(authors.name), captured]
             : [captured, asc(photos.createdAt)];
@@ -210,15 +236,25 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
       stageName: stages.name,
       stagePosition: stages.position,
       dayNumber: stages.dayNumber,
-      startNumber: crewEntries.startNumber,
-      driverName: drivers.name,
-      codriverName: codrivers.name,
-      car: crewEntries.car,
+      crews: sql<PhotoCrew[]>`coalesce((
+        select json_agg(json_build_object(
+          'startNumber', ${crewEntries.startNumber},
+          'driverName', drivers.name,
+          'codriverName', codrivers.name,
+          'car', ${crewEntries.car},
+          'className', ${crewEntries.className},
+          'competitionName', ${competitions.name}
+        ) order by ${photoCrews.position})
+        from ${photoCrews}
+        inner join ${crewEntries} on ${crewEntries.id} = ${photoCrews.crewEntryId}
+        inner join ${people} drivers on drivers.id = ${crewEntries.driverId}
+        left join ${people} codrivers on codrivers.id = ${crewEntries.codriverId}
+        left join ${competitions} on ${competitions.id} = ${crewEntries.competitionId}
+        where ${photoCrews.photoId} = ${photos.id}
+      ), '[]'::json)`,
       carName: cars.name,
       carSlug: cars.slug,
       spectators: photos.spectators,
-      className: crewEntries.className,
-      competitionName: competitions.name,
       authorName: authors.name,
       authorSlug: authors.slug,
       websiteUrl: authors.websiteUrl,
@@ -230,11 +266,7 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
     .innerJoin(galleries, eq(photos.galleryId, galleries.id))
     .innerJoin(authors, eq(galleries.authorId, authors.id))
     .leftJoin(stages, eq(photos.stageId, stages.id))
-    .leftJoin(crewEntries, eq(photos.crewEntryId, crewEntries.id))
-    .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
     .leftJoin(cars, eq(photos.carId, cars.id))
-    .leftJoin(drivers, eq(crewEntries.driverId, drivers.id))
-    .leftJoin(codrivers, eq(crewEntries.codriverId, codrivers.id))
     .where(and(...filters.filter(present)))
     .orderBy(...order)
     .limit(query.view === "latest" && scope.type === "event" ? 10 : 5000);
@@ -255,15 +287,10 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
     stageName: row.stageName,
     stagePosition: row.stagePosition,
     dayNumber: row.dayNumber,
-    startNumber: row.startNumber,
-    driverName: row.driverName,
-    codriverName: row.codriverName,
-    car: row.car,
+    crews: parseCrews(row.crews),
     carName: row.carName,
     carSlug: row.carSlug,
     spectators: row.spectators,
-    className: row.className,
-    competitionName: row.competitionName,
     authorName: row.authorName,
     authorSlug: row.authorSlug,
     websiteUrl: row.websiteUrl,
@@ -271,6 +298,11 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
     gallerySlug: row.gallerySlug,
     galleryTitle: row.galleryTitle,
   })) satisfies PhotoCard[];
+}
+
+function parseCrews(value: unknown): PhotoCrew[] {
+  const parsed = typeof value === "string" ? JSON.parse(value) : value;
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 function timeValue(value: Date | string | null) {
@@ -281,7 +313,12 @@ function timeValue(value: Date | string | null) {
 
 export async function listGalleryCards(eventId: string, min: number, competitionSlug?: string) {
   const inSet = competitionSlug
-    ? sql`${photos.status} = 'published' and ${competitions.slug} = ${competitionSlug}`
+    ? sql`${photos.status} = 'published' and exists (
+        select 1 from ${photoCrews}
+        inner join ${crewEntries} on ${crewEntries.id} = ${photoCrews.crewEntryId}
+        inner join ${competitions} on ${competitions.id} = ${crewEntries.competitionId}
+        where ${photoCrews.photoId} = ${photos.id} and ${competitions.slug} = ${competitionSlug}
+      )`
     : sql`${photos.status} = 'published'`;
   const rows = await getDb()
     .select({
@@ -298,8 +335,6 @@ export async function listGalleryCards(eventId: string, min: number, competition
     .from(galleries)
     .innerJoin(authors, eq(galleries.authorId, authors.id))
     .leftJoin(photos, eq(photos.galleryId, galleries.id))
-    .leftJoin(crewEntries, eq(photos.crewEntryId, crewEntries.id))
-    .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
     .where(eq(galleries.eventId, eventId))
     .groupBy(galleries.id, authors.id);
 

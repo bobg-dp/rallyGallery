@@ -5,7 +5,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { authors, competitions, crewEntries, events, galleries, photos, series, sessions, stages, users } from "@/db/schema";
+import { authors, competitions, crewEntries, events, galleries, photoCrews, photos, series, sessions, stages, users } from "@/db/schema";
 import { requireAdmin } from "@/lib/current-user";
 import { parseAuthorFields, readString, type FormState } from "@/lib/form";
 import { isLogin, normalizeLogin } from "@/lib/login";
@@ -182,7 +182,7 @@ export async function createStage(eventId: string, _prev: FormState, formData: F
 
 export async function deleteStage(eventId: string, stageId: string) {
   await requireAdmin();
-  const used = await getDb().query.photos.findFirst({ where: eq(photos.stageId, stageId) });
+  const [used] = await getDb().select({ id: photos.id }).from(photos).where(eq(photos.stageId, stageId)).limit(1);
   if (used) redirect(eventPath(eventId, "To miejsce ma już zdjęcia."));
   await getDb().delete(stages).where(and(eq(stages.id, stageId), eq(stages.eventId, eventId)));
   revalidatePath(`/admin/rajdy/${eventId}`);
@@ -331,7 +331,11 @@ export async function importCrewEntries(eventId: string, _prev: FormState, formD
 
 export async function deleteCrewEntry(eventId: string, crewId: string) {
   await requireAdmin();
-  const used = await getDb().query.photos.findFirst({ where: eq(photos.crewEntryId, crewId) });
+  const [used] = await getDb()
+    .select({ photoId: photoCrews.photoId })
+    .from(photoCrews)
+    .where(eq(photoCrews.crewEntryId, crewId))
+    .limit(1);
   if (used) redirect(eventPath(eventId, "Ta załoga ma już zdjęcia."));
   await getDb().delete(crewEntries).where(and(eq(crewEntries.id, crewId), eq(crewEntries.eventId, eventId)));
   revalidatePath(`/admin/rajdy/${eventId}`);

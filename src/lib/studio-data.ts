@@ -1,7 +1,7 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
-import { authors, cars, competitions, crewEntries, events, galleries, people, photos, stages } from "@/db/schema";
+import { authors, cars, competitions, crewEntries, events, galleries, people, photoCrews, photos, stages } from "@/db/schema";
 import { derivativeUrl } from "./storage";
 import { startNumberOrder } from "./start-number";
 import { dateToWarsawInput } from "./time";
@@ -47,7 +47,7 @@ export async function getDesk(galleryId: string) {
   });
   if (!gallery) return null;
 
-  const [stageRows, crewRows, competitionRows, authorRows, photoRows] = await Promise.all([
+  const [stageRows, crewRows, competitionRows, authorRows, photoRows, linkRows] = await Promise.all([
     getDb().select().from(stages).where(eq(stages.eventId, gallery.eventId)).orderBy(asc(stages.position)),
     getDb()
       .select({
@@ -83,7 +83,6 @@ export async function getDesk(galleryId: string) {
         latitude: photos.latitude,
         longitude: photos.longitude,
         stageId: photos.stageId,
-        crewEntryId: photos.crewEntryId,
         spectators: photos.spectators,
         carName: cars.name,
       })
@@ -91,7 +90,20 @@ export async function getDesk(galleryId: string) {
       .leftJoin(cars, eq(photos.carId, cars.id))
       .where(eq(photos.galleryId, gallery.id))
       .orderBy(desc(photos.createdAt)),
+    getDb()
+      .select({ photoId: photoCrews.photoId, crewEntryId: photoCrews.crewEntryId })
+      .from(photoCrews)
+      .innerJoin(photos, eq(photoCrews.photoId, photos.id))
+      .where(eq(photos.galleryId, gallery.id))
+      .orderBy(asc(photoCrews.position)),
   ]);
+
+  const crewsByPhoto = new Map<string, string[]>();
+  for (const link of linkRows) {
+    const list = crewsByPhoto.get(link.photoId) ?? [];
+    list.push(link.crewEntryId);
+    crewsByPhoto.set(link.photoId, list);
+  }
 
   return {
     gallery: {
@@ -120,7 +132,7 @@ export async function getDesk(galleryId: string) {
       latitude: photo.latitude,
       longitude: photo.longitude,
       stageId: photo.stageId,
-      crewEntryId: photo.crewEntryId,
+      crewEntryIds: crewsByPhoto.get(photo.id) ?? [],
       spectators: photo.spectators,
       carName: photo.carName,
     })),

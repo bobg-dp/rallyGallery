@@ -3,9 +3,16 @@
 import { useEffect, useId, useState } from "react";
 import { inputClass } from "./styles";
 
-export function CarField({ name = "carName", defaultValue = "" }: { name?: string; defaultValue?: string }) {
+export function CarField({
+  name = "carName",
+  value,
+  onValueChange,
+}: {
+  name?: string;
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
   const listId = useId();
-  const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const [matches, setMatches] = useState<string[]>([]);
 
@@ -39,7 +46,7 @@ export function CarField({ name = "carName", defaultValue = "" }: { name?: strin
         aria-autocomplete="list"
         aria-controls={listId}
         onChange={(event) => {
-          setValue(event.target.value);
+          onValueChange(event.target.value);
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
@@ -54,7 +61,7 @@ export function CarField({ name = "carName", defaultValue = "" }: { name?: strin
                 className="block w-full px-3 py-1.5 text-left hover:bg-paper"
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  setValue(car);
+                  onValueChange(car);
                   setOpen(false);
                 }}
               >

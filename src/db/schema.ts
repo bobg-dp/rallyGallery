@@ -8,6 +8,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -163,7 +164,6 @@ export const photos = pgTable(
       .notNull()
       .references(() => galleries.id, { onDelete: "cascade" }),
     stageId: uuid("stage_id").references(() => stages.id, { onDelete: "restrict" }),
-    crewEntryId: uuid("crew_entry_id").references(() => crewEntries.id, { onDelete: "restrict" }),
     carId: uuid("car_id").references(() => cars.id, { onDelete: "set null" }),
     spectators: boolean("spectators").notNull().default(false),
     caption: text("caption"),
@@ -184,6 +184,23 @@ export const photos = pgTable(
   (table) => [
     index("photos_gallery_idx").on(table.galleryId),
     index("photos_status_idx").on(table.status),
+  ],
+);
+
+export const photoCrews = pgTable(
+  "photo_crews",
+  {
+    photoId: uuid("photo_id")
+      .notNull()
+      .references(() => photos.id, { onDelete: "cascade" }),
+    crewEntryId: uuid("crew_entry_id")
+      .notNull()
+      .references(() => crewEntries.id, { onDelete: "restrict" }),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.photoId, table.crewEntryId] }),
+    index("photo_crews_crew_idx").on(table.crewEntryId),
   ],
 );
 
@@ -221,11 +238,12 @@ export const stagesRelations = relations(stages, ({ one }) => ({
   event: one(events, { fields: [stages.eventId], references: [events.id] }),
 }));
 
-export const crewEntriesRelations = relations(crewEntries, ({ one }) => ({
+export const crewEntriesRelations = relations(crewEntries, ({ one, many }) => ({
   event: one(events, { fields: [crewEntries.eventId], references: [events.id] }),
   competition: one(competitions, { fields: [crewEntries.competitionId], references: [competitions.id] }),
   driver: one(people, { fields: [crewEntries.driverId], references: [people.id], relationName: "driver" }),
   codriver: one(people, { fields: [crewEntries.codriverId], references: [people.id], relationName: "codriver" }),
+  photos: many(photoCrews),
 }));
 
 export const peopleRelations = relations(people, ({ many }) => ({
@@ -243,9 +261,14 @@ export const galleriesRelations = relations(galleries, ({ one, many }) => ({
   photos: many(photos),
 }));
 
-export const photosRelations = relations(photos, ({ one }) => ({
+export const photosRelations = relations(photos, ({ one, many }) => ({
   gallery: one(galleries, { fields: [photos.galleryId], references: [galleries.id] }),
   stage: one(stages, { fields: [photos.stageId], references: [stages.id] }),
-  crew: one(crewEntries, { fields: [photos.crewEntryId], references: [crewEntries.id] }),
   car: one(cars, { fields: [photos.carId], references: [cars.id] }),
+  crews: many(photoCrews),
+}));
+
+export const photoCrewsRelations = relations(photoCrews, ({ one }) => ({
+  photo: one(photos, { fields: [photoCrews.photoId], references: [photos.id] }),
+  crew: one(crewEntries, { fields: [photoCrews.crewEntryId], references: [crewEntries.id] }),
 }));

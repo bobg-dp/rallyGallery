@@ -18,7 +18,7 @@ export function startNumberError(value: string) {
   return null;
 }
 
-export function startNumberOrder(column: AnyColumn): SQL[] {
+export function startNumberOrder(column: AnyColumn | SQL): SQL[] {
   const leading = sql`substring(${column} from '^[0-9]{1,9}')`;
   return [
     sql`case when ${leading} is null then 1 else 0 end`,
