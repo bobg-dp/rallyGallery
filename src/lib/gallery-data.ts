@@ -89,6 +89,7 @@ export async function getEventBundle(slug: string) {
   const event = await getDb().query.events.findFirst({
     where: eq(events.slug, slug),
     with: { series: true },
+    columns: { routeMap: false },
   });
   if (!event) return null;
   const [siblings, stageRows, competitionRows, crewRows, classRows] = await Promise.all([

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PhotoCard } from "@/lib/gallery-data";
+import type { RouteMap } from "@/lib/route-map";
 import { spectatorsCrew, withQuery, type PublicQuery } from "@/lib/query";
 import { buildTimeline } from "@/lib/timeline";
 import { formatWarsaw } from "@/lib/time";
@@ -373,11 +374,13 @@ export function PhotoBrowser({
   display,
   initialPhotoId,
   eventSlug,
+  routes = null,
 }: {
   photos: PhotoCard[];
   display: PublicQuery["display"];
   initialPhotoId?: string;
   eventSlug: string;
+  routes?: RouteMap | null;
 }) {
   const [openId, setOpenId] = useState(initialPhotoId ?? null);
   const [flight, setFlight] = useState<Flight | null>(null);
@@ -517,7 +520,10 @@ export function PhotoBrowser({
               {photos.length - placed} {photos.length - placed === 1 ? "zdjęcie" : "zdjęć"} bez pinezki zostaje poza mapą.
             </p>
           ) : null}
-          <PhotoMap photos={photos} onOpen={show} />
+          {routes && routes.features.length > 0 ? (
+            <p className="text-sm text-muted">Na mapie jest trasa zapisana z mapy organizatora.</p>
+          ) : null}
+          <PhotoMap photos={photos} routes={routes} onOpen={show} />
         </div>
       ) : null}
 

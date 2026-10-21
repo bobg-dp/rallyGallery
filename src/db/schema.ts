@@ -1,4 +1,5 @@
 import { relations, sql } from "drizzle-orm";
+import type { RouteMap } from "@/lib/route-map";
 import {
   type AnyPgColumn,
   boolean,
@@ -6,6 +7,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -59,6 +61,8 @@ export const events = pgTable("events", {
   position: integer("position").notNull().default(0),
   galleryMinPhotos: integer("gallery_min_photos").notNull().default(8),
   heroPhotoId: uuid("hero_photo_id").references((): AnyPgColumn => photos.id, { onDelete: "set null" }),
+  routeMapUrl: text("route_map_url"),
+  routeMap: jsonb("route_map").$type<RouteMap | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

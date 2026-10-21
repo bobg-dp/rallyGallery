@@ -15,6 +15,7 @@ import { parseStartListCsv } from "@/lib/start-list-csv";
 import { deleteObject } from "@/lib/storage";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { readCoordinatePair } from "@/lib/geo";
+import { asRouteMap, assignRouteFolders, downloadMyMapsKml, parseKml, readMyMapsId, setFolderStage } from "@/lib/route-map";
 import { normalizeStartNumber, startNumberError, startNumberKey } from "@/lib/start-number";
 
 function eventPath(eventId: string, error?: string) {
@@ -154,6 +155,73 @@ export async function updateEvent(eventId: string, _prev: FormState, formData: F
   const event = await getDb().query.events.findFirst({ where: eq(events.id, eventId) });
   if (event) revalidatePath(`/${event.slug}`);
   return {};
+}
+
+export async function importRouteMap(eventId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const rawUrl = readString(formData, "routeMapUrl");
+  const mid = readMyMapsId(rawUrl);
+  if (!mid) return { error: "Podaj link do mapy Google My Maps, ten z parametrem mid." };
+  const [event] = await getDb()
+    .select({ id: events.id, slug: events.slug, routeMap: events.routeMap })
+    .from(events)
+    .where(eq(events.id, eventId));
+  if (!event) return { error: "Nie ma takiego rajdu." };
+  const stageRows = await getDb()
+    .select({ id: stages.id, code: stages.code, name: stages.name })
+    .from(stages)
+    .where(eq(stages.eventId, eventId));
+  let xml: string;
+  try {
+    xml = await downloadMyMapsKml(mid);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    return { error: message || "Nie udało się pobrać mapy. Udostępnij ją linkiem i spróbuj ponownie." };
+  }
+  const parsed = parseKml(xml);
+  if (!parsed.ok) return { error: parsed.error };
+  const routeMap = assignRouteFolders(parsed.map, stageRows, asRouteMap(event.routeMap));
+  await getDb().update(events).set({ routeMapUrl: rawUrl, routeMap }).where(eq(events.id, eventId));
+  revalidatePath(`/admin/rajdy/${eventId}`);
+  revalidatePath(`/${event.slug}`);
+  const lines = routeMap.features.filter((feature) => feature.geometry.type === "LineString").length;
+  const lineWord = lines === 1 ? "linia" : lines % 10 >= 2 && lines % 10 <= 4 && (lines % 100 < 12 || lines % 100 > 14) ? "linie" : "linii";
+  return { message: `Zapisano mapę: ${routeMap.features.length} elementów, w tym ${lines} ${lineWord} trasy.` };
+}
+
+export async function assignRouteFolder(eventId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const folder = readString(formData, "folder");
+  const stageId = readString(formData, "stageId");
+  if (!folder) return { error: "Brakuje warstwy." };
+  const [event] = await getDb()
+    .select({ slug: events.slug, routeMap: events.routeMap })
+    .from(events)
+    .where(eq(events.id, eventId));
+  const routeMap = asRouteMap(event?.routeMap);
+  if (!event || !routeMap) return { error: "Najpierw pobierz mapę." };
+  if (stageId) {
+    const [stage] = await getDb()
+      .select({ id: stages.id })
+      .from(stages)
+      .where(and(eq(stages.id, stageId), eq(stages.eventId, eventId)));
+    if (!stage) return { error: "Wybierz miejsce z tego rajdu." };
+  }
+  await getDb()
+    .update(events)
+    .set({ routeMap: setFolderStage(routeMap, folder, stageId || null) })
+    .where(eq(events.id, eventId));
+  revalidatePath(`/admin/rajdy/${eventId}`);
+  revalidatePath(`/${event.slug}`);
+  return { message: "Przypisanie zapisane." };
+}
+
+export async function clearRouteMap(eventId: string) {
+  await requireAdmin();
+  const [event] = await getDb().select({ slug: events.slug }).from(events).where(eq(events.id, eventId));
+  await getDb().update(events).set({ routeMapUrl: null, routeMap: null }).where(eq(events.id, eventId));
+  revalidatePath(`/admin/rajdy/${eventId}`);
+  if (event) revalidatePath(`/${event.slug}`);
 }
 
 export async function createStage(eventId: string, _prev: FormState, formData: FormData): Promise<FormState> {

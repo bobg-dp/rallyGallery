@@ -11,7 +11,8 @@ import { Field, SelectInput, TextInput } from "@/components/field";
 import { startNumberOrder } from "@/lib/start-number";
 import { derivativeUrl } from "@/lib/storage";
 import { formatCoordinate } from "@/lib/geo";
-import { createCompetition, createCrewEntry, createStage, deleteCompetition, deleteCrewEntry, deleteEvent, deleteEventPhoto, deleteStage, importCrewEntries, setCrewCompetition, updateEvent, updateStageGps } from "../../actions";
+import { asRouteMap, routeFolders, type RouteFolder } from "@/lib/route-map";
+import { createCompetition, createCrewEntry, createStage, deleteCompetition, deleteCrewEntry, deleteEvent, deleteEventPhoto, deleteStage, importCrewEntries, setCrewCompetition, updateEvent, updateStageGps, importRouteMap, assignRouteFolder, clearRouteMap } from "../../actions";
 
 const codrivers = alias(people, "event_codrivers");
 
@@ -60,6 +61,7 @@ export default async function Page({
       .where(eq(galleries.eventId, eventId))
       .orderBy(desc(photos.createdAt)),
   ]);
+  const folders = routeFolders(asRouteMap(event.routeMap));
 
   return (
     <div className="space-y-10">
@@ -93,6 +95,48 @@ export default async function Page({
           <TextInput name="galleryMinPhotos" type="number" defaultValue={event.galleryMinPhotos} />
         </Field>
       </ActionForm>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-2xl">Mapa odcinków</h2>
+        <p className="max-w-xl text-sm text-muted">
+          Wklej link do mapy My Maps udostępnionej przez organizatora. Linie i punkty zapisujemy w tym rajdzie i rysujemy je pod pinezkami zdjęć.
+        </p>
+        <ActionForm action={importRouteMap.bind(null, event.id)} submit="Pobierz odcinki">
+          <Field label="Link mapy">
+            <TextInput name="routeMapUrl" defaultValue={event.routeMapUrl ?? ""} placeholder="https://www.google.com/maps/d/..." />
+          </Field>
+        </ActionForm>
+        {folders.length > 0 ? (
+          <ul className="space-y-2">
+            {folders.map((folder) => (
+              <li key={folder.name} className="space-y-3 rounded-lg border border-line bg-panel px-3 py-3">
+                <p className="text-sm">
+                  {folder.name}
+                  {routeBits(folder) ? <span className="text-muted"> · {routeBits(folder)}</span> : null}
+                </p>
+                <ActionForm action={assignRouteFolder.bind(null, event.id)} submit="Zapisz przypisanie" className="flex flex-wrap items-end gap-3">
+                  <input type="hidden" name="folder" value={folder.name} />
+                  <Field label="Miejsce">
+                    <SelectInput name="stageId" defaultValue={folder.stageId ?? ""}>
+                      <option value="">Bez miejsca</option>
+                      {stageRows.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          {stage.code} {stage.name}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  </Field>
+                </ActionForm>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {event.routeMapUrl ? (
+          <ConfirmSubmit action={clearRouteMap.bind(null, event.id)} message="Usunąć zapisaną mapę odcinków?" className={btnDanger}>
+            Usuń mapę
+          </ConfirmSubmit>
+        ) : null}
+      </section>
 
       <section className="space-y-3">
         <h2 className="font-display text-2xl">Miejsca</h2>
@@ -298,4 +342,22 @@ export default async function Page({
       </section>
     </div>
   );
+}
+
+function routeBits(folder: RouteFolder) {
+  return [
+    folder.lines ? countLabel(folder.lines, "linia", "linie", "linii") : "",
+    folder.points ? countLabel(folder.points, "punkt", "punkty", "punktów") : "",
+    folder.polygons ? countLabel(folder.polygons, "obszar", "obszary", "obszarów") : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function countLabel(count: number, one: string, few: string, many: string) {
+  if (count === 1) return `1 ${one}`;
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} ${few}`;
+  return `${count} ${many}`;
 }
