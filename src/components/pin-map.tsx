@@ -102,17 +102,19 @@ export function PinMap({
     if (!ref.current) return;
     maplibregl.setWorkerUrl("/maplibre-gl-worker.js");
     const start = pointRef.current;
-    const placed = start.longitude != null && start.latitude != null;
+    const latitude = start.latitude;
+    const longitude = start.longitude;
+    const placed = longitude != null && latitude != null;
     const map = new maplibregl.Map({
       container: ref.current,
       style,
-      center: placed ? [start.longitude, start.latitude] : [19.4, 52.1],
+      center: placed ? [longitude, latitude] : [19.4, 52.1],
       zoom: placed ? 13 : 5,
     });
     mapRef.current = map;
     const marker = new maplibregl.Marker({ draggable: true, color: "#c2410c" });
     markerRef.current = marker;
-    if (placed) marker.setLngLat([start.longitude, start.latitude]).addTo(map);
+    if (placed) marker.setLngLat([longitude, latitude]).addTo(map);
     map.on("load", () => {
       map.addSource("routes", { type: "geojson", data: routeCollection(routesRef.current) });
       map.addLayer({
