@@ -2,6 +2,7 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { authors, cars, competitions, crewEntries, events, galleries, people, photoCrews, photos, stages } from "@/db/schema";
+import { asRouteMap } from "./route-map";
 import { derivativeUrl } from "./storage";
 import { startNumberOrder } from "./start-number";
 import { dateToWarsawInput } from "./time";
@@ -47,7 +48,7 @@ export async function getDesk(galleryId: string) {
   });
   if (!gallery) return null;
 
-  const [stageRows, crewRows, competitionRows, authorRows, photoRows, linkRows] = await Promise.all([
+  const [stageRows, crewRows, competitionRows, authorRows, photoRows, linkRows, routeRows] = await Promise.all([
     getDb().select().from(stages).where(eq(stages.eventId, gallery.eventId)).orderBy(asc(stages.position)),
     getDb()
       .select({
@@ -97,6 +98,7 @@ export async function getDesk(galleryId: string) {
       .innerJoin(photos, eq(photoCrews.photoId, photos.id))
       .where(eq(photos.galleryId, gallery.id))
       .orderBy(asc(photoCrews.position)),
+    getDb().select({ routeMap: events.routeMap }).from(events).where(eq(events.id, gallery.eventId)).limit(1),
   ]);
 
   const crewsByPhoto = new Map<string, string[]>();
@@ -119,6 +121,7 @@ export async function getDesk(galleryId: string) {
       heroPhotoId: gallery.event.heroPhotoId,
     },
     stages: stageRows,
+    routes: asRouteMap(routeRows[0]?.routeMap),
     competitions: competitionRows,
     crews: crewRows,
     authors: authorRows.map((author) => ({ id: author.id, name: author.name })),

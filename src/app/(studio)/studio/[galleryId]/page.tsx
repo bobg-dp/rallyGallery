@@ -13,6 +13,7 @@ export default async function Page({ params }: { params: Promise<{ galleryId: st
       <Desk
         gallery={data.gallery}
         stages={data.stages}
+        routes={data.routes}
         competitions={data.competitions}
         crews={data.crews}
         authors={data.authors}

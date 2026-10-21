@@ -10,6 +10,7 @@ import { CarField } from "./car-field";
 import { carForCrewSelection, carTextForCrews, CrewPicker, type CrewOption } from "./crew-picker";
 import { Field, SelectInput, TextInput } from "./field";
 import { btnGhost, btnPrimary } from "./styles";
+import type { RouteMap } from "@/lib/route-map";
 
 const PinMap = dynamic(() => import("./pin-map").then((mod) => mod.PinMap), { ssr: false });
 
@@ -36,6 +37,7 @@ export function PhotoEditor({
   heroPhotoId,
   photo,
   stages,
+  routes,
   crews,
   onClose,
 }: {
@@ -43,6 +45,7 @@ export function PhotoEditor({
   heroPhotoId: string | null;
   photo: Photo;
   stages: Stage[];
+  routes: RouteMap | null;
   crews: Crew[];
   onClose: () => void;
 }) {
@@ -53,6 +56,7 @@ export function PhotoEditor({
   const [stageId, setStageId] = useState(photo.stageId ?? "");
   const [latitude, setLatitude] = useState<number | null>(photo.latitude);
   const [longitude, setLongitude] = useState<number | null>(photo.longitude);
+  const [focusPin, setFocusPin] = useState(0);
 
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -77,6 +81,7 @@ export function PhotoEditor({
     if (stage?.latitude != null && stage.longitude != null) {
       setLatitude(stage.latitude);
       setLongitude(stage.longitude);
+      setFocusPin((value) => value + 1);
     }
   }
 
@@ -161,11 +166,15 @@ export function PhotoEditor({
               {fromPlace
                 ? "Pinezka pochodzi z namiaru miejsca. Zapisuje się razem z kadrem."
                 : "Pinezka jest opcjonalna. Kliknij mapę albo przeciągnij znacznik, a potem zapisz kadr."}
+              {routes && routes.features.length > 0 ? " Odcinki rajdu są na mapie, żeby łatwiej trafić w miejsce zdjęcia." : ""}
             </p>
             <PinMap
-              key={`${photo.id}:${latitude ?? ""}:${longitude ?? ""}`}
+              key={photo.id}
               latitude={latitude}
               longitude={longitude}
+              routes={routes}
+              stageId={stageId}
+              focusPin={focusPin}
               onChange={(point) => {
                 setLatitude(point.latitude);
                 setLongitude(point.longitude);

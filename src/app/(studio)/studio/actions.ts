@@ -187,13 +187,6 @@ export async function createCrew(galleryId: string, _prev: FormState, formData: 
   return {};
 }
 
-function ids(formData: FormData) {
-  return formData
-    .getAll("photoId")
-    .map((value) => String(value))
-    .filter((value) => /^[0-9a-f-]{36}$/i.test(value));
-}
-
 export async function savePhoto(galleryId: string, photoId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   await requireUser();
   const gallery = await getDb().query.galleries.findFirst({ where: eq(galleries.id, galleryId) });
@@ -234,64 +227,6 @@ export async function savePhoto(galleryId: string, photoId: string, _prev: FormS
     latitude: point.latitude,
     longitude: point.longitude,
   });
-  const event = await getDb().query.events.findFirst({ where: eq(events.id, gallery.eventId) });
-  refresh(galleryId, event?.slug);
-  return {};
-}
-
-export async function applyBulk(galleryId: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  await requireUser();
-  const gallery = await getDb().query.galleries.findFirst({ where: eq(galleries.id, galleryId) });
-  if (!gallery) return { error: "Nie ma takiej galerii." };
-  const photoIds = ids(formData);
-  if (!photoIds.length) return { error: "Zaznacz zdjęcia." };
-  const patch: {
-    stageId?: string | null;
-    carId?: string | null;
-    caption?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-  } = {};
-  const stageId = readString(formData, "stageId");
-  const caption = readString(formData, "caption");
-  const setCaption = formData.get("setCaption") === "on";
-  if (stageId === "clear") patch.stageId = null;
-  else if (stageId) {
-    const [stage] = await getDb()
-      .select({ id: stages.id, latitude: stages.latitude, longitude: stages.longitude })
-      .from(stages)
-      .where(and(eq(stages.id, stageId), eq(stages.eventId, gallery.eventId)))
-      .limit(1);
-    if (!stage) return { error: "Wybierz miejsce z tego rajdu." };
-    patch.stageId = stageId;
-    if (stage.latitude != null && stage.longitude != null) {
-      patch.latitude = stage.latitude;
-      patch.longitude = stage.longitude;
-    }
-  }
-  const crew = await readCrewAssignment(gallery.eventId, formData);
-  if ("error" in crew) return { error: crew.error };
-  if (setCaption) {
-    if (caption.length > 400) return { error: "Podpis jest za długi." };
-    patch.caption = caption || null;
-  }
-  if (formData.get("setCar") === "on") {
-    const carName = normalizeCarName(readString(formData, "carName"));
-    if (carName.length > 240) return { error: "Nazwa auta jest za długa." };
-    patch.carId = carName ? await findOrCreateCar(carName) : null;
-  }
-  if (!Object.keys(patch).length && "skip" in crew) return { error: "Wybierz, co zmienić." };
-  const owned = await getDb()
-    .select({ id: photos.id })
-    .from(photos)
-    .where(and(eq(photos.galleryId, galleryId), inArray(photos.id, photoIds)));
-  if (!owned.length) return { error: "Zaznacz zdjęcia." };
-  const ownedIds = owned.map((row) => row.id);
-  if ("skip" in crew) {
-    await getDb().update(photos).set(patch).where(inArray(photos.id, ownedIds));
-  } else {
-    await replacePhotoCrews(ownedIds, crew, patch);
-  }
   const event = await getDb().query.events.findFirst({ where: eq(events.id, gallery.eventId) });
   refresh(galleryId, event?.slug);
   return {};
