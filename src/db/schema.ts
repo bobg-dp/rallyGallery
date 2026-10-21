@@ -74,6 +74,8 @@ export const stages = pgTable(
     slug: text("slug").notNull(),
     dayNumber: integer("day_number").notNull().default(1),
     position: integer("position").notNull().default(0),
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
   },
   (table) => [uniqueIndex("stages_event_slug").on(table.eventId, table.slug)],
 );

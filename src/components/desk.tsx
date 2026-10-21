@@ -1,30 +1,18 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  applyBulk,
-  createCrew,
-  deleteGallery,
-  deletePhotos,
-  savePhoto,
-  setEventHero,
-  setLocation,
-  setPublished,
-  updateGallery,
-} from "@/app/(studio)/studio/actions";
+import { applyBulk, createCrew, deleteGallery, deletePhotos, setPublished, updateGallery } from "@/app/(studio)/studio/actions";
 import { ActionForm } from "./action-form";
 import { CarField } from "./car-field";
-import { CrewPicker, type CrewOption } from "./crew-picker";
+import { carForCrewSelection, CrewPicker } from "./crew-picker";
 import { Field, SelectInput, TextInput } from "./field";
+import { PhotoEditor } from "./photo-editor";
 import { btnDanger, btnGhost, btnPrimary } from "./styles";
 
-const PinMap = dynamic(() => import("./pin-map").then((mod) => mod.PinMap), { ssr: false });
-
-type Stage = { id: string; code: string; name: string };
+type Stage = { id: string; code: string; name: string; latitude: number | null; longitude: number | null };
 type Crew = {
   id: string;
   startNumber: string;
@@ -38,6 +26,9 @@ type Photo = {
   id: string;
   status: "draft" | "published";
   thumbUrl: string;
+  gridUrl: string;
+  width: number;
+  height: number;
   caption: string | null;
   capturedAt: string;
   latitude: number | null;
@@ -74,14 +65,14 @@ export function Desk({
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>(photos[0] ? [photos[0].id] : []);
-  const [focusedId, setFocusedId] = useState(photos[0]?.id ?? "");
+  const [editorId, setEditorId] = useState<string | null>(null);
   const [authorMode, setAuthorMode] = useState("existing");
   const [bulkCrewIds, setBulkCrewIds] = useState<string[]>([]);
   const [bulkSpectators, setBulkSpectators] = useState(false);
   const [bulkUnchanged, setBulkUnchanged] = useState(true);
   const [bulkCar, setBulkCar] = useState("");
   const [applyCar, setApplyCar] = useState(false);
-  const focused = photos.find((photo) => photo.id === focusedId) ?? photos[0];
+  const editor = photos.find((photo) => photo.id === editorId) ?? null;
 
   function toggle(id: string) {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -220,6 +211,7 @@ export function Desk({
             {stages.map((stage) => (
               <option key={stage.id} value={stage.id}>
                 {stage.code} {stage.name}
+                {stage.latitude != null && stage.longitude != null ? " · namiar" : ""}
               </option>
             ))}
           </SelectInput>
@@ -236,8 +228,8 @@ export function Desk({
               setBulkCrewIds(next.crewIds);
               setBulkSpectators(next.spectators);
               setBulkUnchanged(next.unchanged);
-              const filled = carForCrews(bulkCar, crews, bulkCrewIds, next);
-              if (filled !== bulkCar || (next.added && next.crewIds.length === 1)) setApplyCar(true);
+              const filled = carForCrewSelection(bulkCar, crews, bulkCrewIds, next);
+              if (filled !== bulkCar) setApplyCar(true);
               setBulkCar(filled);
             }}
           />
@@ -258,133 +250,35 @@ export function Desk({
         </Field>
       </ActionForm>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-          {photos.map((photo) => (
-            <div key={photo.id} className={`relative overflow-hidden rounded-md border ${focused?.id === photo.id ? "border-accent" : "border-transparent"}`}>
-              <button type="button" className="block w-full" onClick={() => setFocusedId(photo.id)}>
-                <Image src={photo.thumbUrl} alt="" width={320} height={220} unoptimized className="aspect-[4/3] w-full object-cover" />
-              </button>
-              <label className="absolute top-2 left-2 flex items-center gap-1 rounded bg-panel/90 px-2 py-1 text-xs">
-                <input type="checkbox" checked={selected.includes(photo.id)} onChange={() => toggle(photo.id)} />
-                {photo.status === "published" ? "opublikowane" : "szkic"}
-              </label>
-              {gallery.heroPhotoId === photo.id ? (
-                <span className="absolute top-2 right-2 rounded bg-ink px-2 py-1 text-xs text-paper">Hero</span>
-              ) : null}
-            </div>
-          ))}
-        </div>
-        {focused ? (
-          <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-            <PhotoForm key={focused.id} galleryId={gallery.id} photo={focused} stages={stages} crews={crews} />
-            <button
-              type="button"
-              className={gallery.heroPhotoId === focused.id ? btnGhost : btnPrimary}
-              onClick={() => {
-                const next = gallery.heroPhotoId === focused.id ? null : focused.id;
-                void setEventHero(gallery.id, next).then(() => router.refresh());
-              }}
-            >
-              {gallery.heroPhotoId === focused.id ? "Zdejmij z hero" : "Ustaw jako hero"}
+      {photos.length === 0 ? <p className="text-sm text-muted">Wgraj zdjęcia, a potem wybierz kadr.</p> : null}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
+        {photos.map((photo) => (
+          <div key={photo.id} className={`relative overflow-hidden rounded-md border ${editor?.id === photo.id ? "border-accent" : "border-transparent"}`}>
+            <button type="button" className="block w-full" onClick={() => setEditorId(photo.id)} aria-label="Edytuj metadane">
+              <Image src={photo.thumbUrl} alt="" width={320} height={220} unoptimized className="aspect-[4/3] w-full object-cover" />
             </button>
-            {focused.status !== "published" && gallery.heroPhotoId !== focused.id ? (
-              <p className="text-sm text-muted">Na stronie rajdu hero pojawi się dopiero po publikacji tego kadru.</p>
+            <label className="absolute top-2 left-2 flex items-center gap-1 rounded bg-panel/90 px-2 py-1 text-xs">
+              <input type="checkbox" checked={selected.includes(photo.id)} onChange={() => toggle(photo.id)} />
+              {photo.status === "published" ? "opublikowane" : "szkic"}
+            </label>
+            {gallery.heroPhotoId === photo.id ? (
+              <span className="absolute top-2 right-2 rounded bg-ink px-2 py-1 text-xs text-paper">Hero</span>
             ) : null}
-            <div className="space-y-2">
-              <p className="text-sm text-muted">Pinezka jest opcjonalna. Kliknij mapę albo przeciągnij znacznik.</p>
-              <PinMap
-                key={focused.id}
-                latitude={focused.latitude}
-                longitude={focused.longitude}
-                onChange={(point) => {
-                  void setLocation(focused.id, point.latitude, point.longitude).then(() => router.refresh());
-                }}
-              />
-              <button
-                type="button"
-                className={btnGhost}
-                onClick={() => {
-                  void setLocation(focused.id, null, null).then(() => router.refresh());
-                }}
-              >
-                Usuń pinezkę
-              </button>
-            </div>
-          </aside>
-        ) : (
-          <p className="text-sm text-muted">Wgraj zdjęcia, a potem wybierz kadr.</p>
-        )}
+          </div>
+        ))}
       </div>
+      {editor ? (
+        <PhotoEditor
+          key={editor.id}
+          galleryId={gallery.id}
+          heroPhotoId={gallery.heroPhotoId}
+          photo={editor}
+          stages={stages}
+          crews={crews}
+          onClose={() => setEditorId(null)}
+        />
+      ) : null}
     </div>
   );
 }
 
-function carForCrews(
-  current: string,
-  crews: Crew[],
-  previousIds: string[],
-  next: { crewIds: string[]; added: CrewOption | null; spectators: boolean },
-) {
-  if (next.spectators || next.crewIds.length !== 1) return current;
-  const left = crews.find((crew) => crew.id === next.crewIds[0]);
-  if (!left) return current;
-  if (next.added) return left.car;
-  const previousCars = previousIds.map((id) => crews.find((crew) => crew.id === id)?.car);
-  if (!current.trim() || previousCars.includes(current)) return left.car;
-  return current;
-}
-
-function PhotoForm({
-  galleryId,
-  photo,
-  stages,
-  crews,
-}: {
-  galleryId: string;
-  photo: Photo;
-  stages: Stage[];
-  crews: Crew[];
-}) {
-  const single = photo.crewEntryIds.length === 1 ? crews.find((crew) => crew.id === photo.crewEntryIds[0]) : undefined;
-  const [carName, setCarName] = useState(photo.carName || single?.car || "");
-  const [crewIds, setCrewIds] = useState(photo.crewEntryIds);
-  const [spectators, setSpectators] = useState(photo.spectators);
-
-  return (
-    <ActionForm action={savePhoto.bind(null, galleryId, photo.id)} submit="Zapisz kadr">
-      <Field label="Miejsce">
-        <SelectInput name="stageId" defaultValue={photo.stageId ?? ""}>
-          <option value="">Bez miejsca</option>
-          {stages.map((stage) => (
-            <option key={stage.id} value={stage.id}>
-              {stage.code} {stage.name}
-            </option>
-          ))}
-        </SelectInput>
-      </Field>
-      <div className="block space-y-1.5 text-sm">
-        <span className="text-muted">Zawodnicy</span>
-        <CrewPicker
-          crews={crews}
-          crewIds={crewIds}
-          spectators={spectators}
-          onChange={(next) => {
-            setCrewIds(next.crewIds);
-            setSpectators(next.spectators);
-            setCarName(carForCrews(carName, crews, crewIds, next));
-          }}
-        />
-      </div>
-      <Field label="Auto">
-        <CarField value={carName} onValueChange={setCarName} />
-      </Field>
-      <Field label="Czas wykonania">
-        <TextInput name="capturedAt" type="datetime-local" defaultValue={photo.capturedAt} />
-      </Field>
-      <Field label="Podpis">
-        <TextInput name="caption" defaultValue={photo.caption ?? ""} />
-      </Field>
-    </ActionForm>
-  );
-}

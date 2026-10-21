@@ -37,16 +37,16 @@ export async function findOrCreateCar(raw: string) {
 export async function searchCars(raw: string) {
   const query = normalizeCarName(raw);
   if (query.length < 1) return [];
+  const phrase = query.includes(",");
   const like = `%${query.replace(/[%_]/g, "")}%`;
+  const singleName = sql`position(',' in ${cars.name}) = 0`;
+  const singleCrewCar = sql`position(',' in ${crewEntries.car}) = 0`;
+  const catalogMatch = phrase ? sql`lower(${cars.name}) = lower(${query})` : and(ilike(cars.name, like), singleName);
+  const declaredMatch = phrase ? sql`lower(${crewEntries.car}) = lower(${query})` : and(ilike(crewEntries.car, like), singleCrewCar);
   const db = getDb();
   const [catalog, declared] = await Promise.all([
-    db.select({ name: cars.name }).from(cars).where(ilike(cars.name, like)).orderBy(asc(cars.name)).limit(8),
-    db
-      .selectDistinct({ name: crewEntries.car })
-      .from(crewEntries)
-      .where(ilike(crewEntries.car, like))
-      .orderBy(asc(crewEntries.car))
-      .limit(8),
+    db.select({ name: cars.name }).from(cars).where(catalogMatch).orderBy(asc(cars.name)).limit(8),
+    db.selectDistinct({ name: crewEntries.car }).from(crewEntries).where(declaredMatch).orderBy(asc(crewEntries.car)).limit(8),
   ]);
   const seen = new Set<string>();
   const names: string[] = [];

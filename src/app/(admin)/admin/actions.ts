@@ -14,6 +14,7 @@ import { findOrCreatePerson, slugTaken } from "@/lib/records";
 import { parseStartListCsv } from "@/lib/start-list-csv";
 import { deleteObject } from "@/lib/storage";
 import { slugify, uniqueSlug } from "@/lib/slug";
+import { readCoordinatePair } from "@/lib/geo";
 import { normalizeStartNumber, startNumberError, startNumberKey } from "@/lib/start-number";
 
 function eventPath(eventId: string, error?: string) {
@@ -162,6 +163,8 @@ export async function createStage(eventId: string, _prev: FormState, formData: F
   const dayNumber = Number(readString(formData, "dayNumber") || "1");
   const position = Number(readString(formData, "position") || "0");
   if (!code || !name) return { error: "Podaj kod i nazwę miejsca." };
+  const point = readCoordinatePair(readString(formData, "latitude"), readString(formData, "longitude"));
+  if (!point.ok) return { error: point.error };
   const slug = await uniqueSlug(code, async (candidate) => {
     const row = await getDb().query.stages.findFirst({
       where: and(eq(stages.eventId, eventId), eq(stages.slug, candidate)),
@@ -175,8 +178,26 @@ export async function createStage(eventId: string, _prev: FormState, formData: F
     slug,
     dayNumber: Number.isInteger(dayNumber) && dayNumber > 0 ? dayNumber : 1,
     position: Number.isInteger(position) ? position : 0,
+    latitude: point.latitude,
+    longitude: point.longitude,
   });
   revalidatePath(`/admin/rajdy/${eventId}`);
+  revalidatePath("/studio", "layout");
+  return {};
+}
+
+export async function updateStageGps(eventId: string, stageId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const point = readCoordinatePair(readString(formData, "latitude"), readString(formData, "longitude"));
+  if (!point.ok) return { error: point.error };
+  await getDb()
+    .update(stages)
+    .set({ latitude: point.latitude, longitude: point.longitude })
+    .where(and(eq(stages.id, stageId), eq(stages.eventId, eventId)));
+  revalidatePath(`/admin/rajdy/${eventId}`);
+  revalidatePath("/studio", "layout");
+  const event = await getDb().query.events.findFirst({ where: eq(events.id, eventId) });
+  if (event) revalidatePath(`/${event.slug}`);
   return {};
 }
 

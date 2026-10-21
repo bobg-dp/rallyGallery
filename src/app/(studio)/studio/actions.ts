@@ -10,6 +10,7 @@ import { requireUser } from "@/lib/current-user";
 import { eventSlugTaken, findOrCreateCar, findOrCreatePerson, normalizeCarName, slugTaken } from "@/lib/records";
 import { deleteObject, photoKeys } from "@/lib/storage";
 import { uniqueSlug } from "@/lib/slug";
+import { readCoordinatePair } from "@/lib/geo";
 import { normalizeStartNumber, startNumberError, startNumberKey } from "@/lib/start-number";
 import { warsawLocalToDate } from "@/lib/time";
 
@@ -51,6 +52,8 @@ async function replacePhotoCrews(
     carId?: string | null;
     caption?: string | null;
     capturedAt?: Date | null;
+    latitude?: number | null;
+    longitude?: number | null;
   } = {},
 ) {
   if (!photoIds.length) return;
@@ -200,13 +203,17 @@ export async function savePhoto(galleryId: string, photoId: string, _prev: FormS
   const carName = normalizeCarName(readString(formData, "carName"));
   const capturedRaw = readString(formData, "capturedAt");
   if (caption.length > 400) return { error: "Podpis jest za długi." };
-  if (carName.length > 80) return { error: "Nazwa auta jest za długa." };
+  if (carName.length > 240) return { error: "Nazwa auta jest za długa." };
   if (stageId) {
-    const stage = await getDb().query.stages.findFirst({
-      where: and(eq(stages.id, stageId), eq(stages.eventId, gallery.eventId)),
-    });
+    const [stage] = await getDb()
+      .select({ id: stages.id })
+      .from(stages)
+      .where(and(eq(stages.id, stageId), eq(stages.eventId, gallery.eventId)))
+      .limit(1);
     if (!stage) return { error: "Wybierz miejsce z tego rajdu." };
   }
+  const point = readCoordinatePair(readString(formData, "latitude"), readString(formData, "longitude"));
+  if (!point.ok) return { error: point.error };
   const crew = await readCrewAssignment(gallery.eventId, formData);
   if ("error" in crew) return { error: crew.error };
   if ("skip" in crew) return { error: "Wybierz zawodników." };
@@ -224,6 +231,8 @@ export async function savePhoto(galleryId: string, photoId: string, _prev: FormS
     carId,
     caption: caption || null,
     capturedAt,
+    latitude: point.latitude,
+    longitude: point.longitude,
   });
   const event = await getDb().query.events.findFirst({ where: eq(events.id, gallery.eventId) });
   refresh(galleryId, event?.slug);
@@ -240,17 +249,25 @@ export async function applyBulk(galleryId: string, _prev: FormState, formData: F
     stageId?: string | null;
     carId?: string | null;
     caption?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
   } = {};
   const stageId = readString(formData, "stageId");
   const caption = readString(formData, "caption");
   const setCaption = formData.get("setCaption") === "on";
   if (stageId === "clear") patch.stageId = null;
   else if (stageId) {
-    const stage = await getDb().query.stages.findFirst({
-      where: and(eq(stages.id, stageId), eq(stages.eventId, gallery.eventId)),
-    });
+    const [stage] = await getDb()
+      .select({ id: stages.id, latitude: stages.latitude, longitude: stages.longitude })
+      .from(stages)
+      .where(and(eq(stages.id, stageId), eq(stages.eventId, gallery.eventId)))
+      .limit(1);
     if (!stage) return { error: "Wybierz miejsce z tego rajdu." };
     patch.stageId = stageId;
+    if (stage.latitude != null && stage.longitude != null) {
+      patch.latitude = stage.latitude;
+      patch.longitude = stage.longitude;
+    }
   }
   const crew = await readCrewAssignment(gallery.eventId, formData);
   if ("error" in crew) return { error: crew.error };
@@ -260,7 +277,7 @@ export async function applyBulk(galleryId: string, _prev: FormState, formData: F
   }
   if (formData.get("setCar") === "on") {
     const carName = normalizeCarName(readString(formData, "carName"));
-    if (carName.length > 80) return { error: "Nazwa auta jest za długa." };
+    if (carName.length > 240) return { error: "Nazwa auta jest za długa." };
     patch.carId = carName ? await findOrCreateCar(carName) : null;
   }
   if (!Object.keys(patch).length && "skip" in crew) return { error: "Wybierz, co zmienić." };

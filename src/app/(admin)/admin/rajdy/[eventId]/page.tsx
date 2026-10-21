@@ -10,7 +10,8 @@ import { btnDanger } from "@/components/styles";
 import { Field, SelectInput, TextInput } from "@/components/field";
 import { startNumberOrder } from "@/lib/start-number";
 import { derivativeUrl } from "@/lib/storage";
-import { createCompetition, createCrewEntry, createStage, deleteCompetition, deleteCrewEntry, deleteEvent, deleteEventPhoto, deleteStage, importCrewEntries, setCrewCompetition, updateEvent } from "../../actions";
+import { formatCoordinate } from "@/lib/geo";
+import { createCompetition, createCrewEntry, createStage, deleteCompetition, deleteCrewEntry, deleteEvent, deleteEventPhoto, deleteStage, importCrewEntries, setCrewCompetition, updateEvent, updateStageGps } from "../../actions";
 
 const codrivers = alias(people, "event_codrivers");
 
@@ -95,18 +96,38 @@ export default async function Page({
 
       <section className="space-y-3">
         <h2 className="font-display text-2xl">Miejsca</h2>
-        <p className="max-w-xl text-sm text-muted">Odcinek specjalny, park serwisowy, meta albo inne miejsce na trasie.</p>
+        <p className="max-w-xl text-sm text-muted">
+          Odcinek specjalny, park serwisowy, meta albo inne miejsce na trasie. Namiar GPS jest opcjonalny. Zdjęcie dostaje z niego pinezkę, gdy wybierzesz to miejsce.
+        </p>
         <ul className="space-y-2">
           {stageRows.map((stage) => (
-            <li key={stage.id} className="flex items-center justify-between rounded-lg border border-line bg-panel px-3 py-2 text-sm">
-              <span>
-                {stage.code} {stage.name} · dzień {stage.dayNumber}
-              </span>
-              <form action={deleteStage.bind(null, event.id, stage.id)}>
-                <button className={btnDanger} type="submit">
-                  Usuń
-                </button>
-              </form>
+            <li key={stage.id} className="space-y-3 rounded-lg border border-line bg-panel px-3 py-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span>
+                  {stage.code} {stage.name} · dzień {stage.dayNumber}
+                  {stage.latitude != null && stage.longitude != null ? (
+                    <span className="text-muted">
+                      {" "}
+                      · {formatCoordinate(stage.latitude)}, {formatCoordinate(stage.longitude)}
+                    </span>
+                  ) : (
+                    <span className="text-muted"> · bez namiaru</span>
+                  )}
+                </span>
+                <form action={deleteStage.bind(null, event.id, stage.id)}>
+                  <button className={btnDanger} type="submit">
+                    Usuń
+                  </button>
+                </form>
+              </div>
+              <ActionForm action={updateStageGps.bind(null, event.id, stage.id)} submit="Zapisz namiar" className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <Field label="Szerokość">
+                  <TextInput name="latitude" placeholder="50,843" defaultValue={formatCoordinate(stage.latitude)} />
+                </Field>
+                <Field label="Długość">
+                  <TextInput name="longitude" placeholder="15,728" defaultValue={formatCoordinate(stage.longitude)} />
+                </Field>
+              </ActionForm>
             </li>
           ))}
         </ul>
@@ -122,6 +143,12 @@ export default async function Page({
           </Field>
           <Field label="Kolejność">
             <TextInput name="position" type="number" defaultValue={stageRows.length + 1} />
+          </Field>
+          <Field label="Szerokość, opcjonalnie">
+            <TextInput name="latitude" placeholder="50,843" />
+          </Field>
+          <Field label="Długość, opcjonalnie">
+            <TextInput name="longitude" placeholder="15,728" />
           </Field>
         </ActionForm>
       </section>

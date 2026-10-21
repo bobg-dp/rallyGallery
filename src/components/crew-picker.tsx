@@ -20,6 +20,46 @@ export function crewOptionLabel(crew: CrewOption) {
   return `${crew.startNumber} ${names}${crew.competitionName ? ` · ${crew.competitionName}` : ""}`;
 }
 
+export function carTextForCrews(crews: CrewOption[], ids: string[]) {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const id of ids) {
+    const car = crews.find((crew) => crew.id === id)?.car.trim().replace(/\s+/g, " ") ?? "";
+    if (!car) continue;
+    const key = car.toLocaleLowerCase("pl");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(car);
+  }
+  return names.join(", ");
+}
+
+export function carForCrewSelection(
+  current: string,
+  crews: CrewOption[],
+  previousIds: string[],
+  next: { crewIds: string[]; added: CrewOption | null; spectators: boolean; unchanged?: boolean },
+) {
+  if (next.unchanged) return current;
+  const previous = carTextForCrews(crews, previousIds);
+  const followsCrews = sameCarText(current, previous);
+  if (next.spectators || next.crewIds.length === 0) return followsCrews ? "" : current;
+  const composed = carTextForCrews(crews, next.crewIds);
+  if (next.added || followsCrews) return composed;
+  return current;
+}
+
+function sameCarText(left: string, right: string) {
+  const parts = (value: string) =>
+    value
+      .split(",")
+      .map((part) => part.trim().replace(/\s+/g, " ").toLocaleLowerCase("pl"))
+      .filter(Boolean);
+  const current = parts(left);
+  const previous = parts(right);
+  return current.length === previous.length && current.every((part, index) => part === previous[index]);
+}
+
 export function CrewPicker({
   crews,
   crewIds,
@@ -105,7 +145,7 @@ export function CrewPicker({
         selected.map((crew) => <input key={crew.id} type="hidden" name="crewEntryId" value={crew.id} />)
       )}
       {allowUnchanged ? <input type="hidden" name="crewMode" value={unchanged ? "" : spectators || selected.length ? "set" : "clear"} /> : null}
-      <p className="text-xs text-muted">Możesz dodać kilka numerów. Auto uzupełni się z wybranego zawodnika.</p>
+      <p className="text-xs text-muted">Możesz dodać kilka numerów. Auta dopiszą się po przecinku, bez powtórek.</p>
     </div>
   );
 }
