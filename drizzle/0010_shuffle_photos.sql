@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "shuffle_photos" boolean DEFAULT false NOT NULL;

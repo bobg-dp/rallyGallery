@@ -61,7 +61,7 @@ export async function getDesk(galleryId: string) {
         competitionName: competitions.name,
       })
       .from(crewEntries)
-      .innerJoin(people, eq(crewEntries.driverId, people.id))
+      .leftJoin(people, eq(crewEntries.driverId, people.id))
       .leftJoin(codrivers, eq(crewEntries.codriverId, codrivers.id))
       .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
       .where(eq(crewEntries.eventId, gallery.eventId))

@@ -71,6 +71,20 @@
       "when": 1792588379455,
       "tag": "0009_neat_enchantress",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792686940411,
+      "tag": "0010_shuffle_photos",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792689855506,
+      "tag": "0011_optional_crew_driver",
+      "breakpoints": true
     }
   ]
 }

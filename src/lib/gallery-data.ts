@@ -10,7 +10,7 @@ const drivers = alias(people, "drivers");
 
 export type PhotoCrew = {
   startNumber: string;
-  driverName: string;
+  driverName: string | null;
   codriverName: string | null;
   car: string;
   className: string;
@@ -112,10 +112,11 @@ export async function getEventBundle(slug: string) {
       .select({
         startNumber: crewEntries.startNumber,
         driverName: drivers.name,
+        car: crewEntries.car,
         competitionSlug: competitions.slug,
       })
       .from(crewEntries)
-      .innerJoin(drivers, eq(crewEntries.driverId, drivers.id))
+      .leftJoin(drivers, eq(crewEntries.driverId, drivers.id))
       .leftJoin(competitions, eq(crewEntries.competitionId, competitions.id))
       .where(eq(crewEntries.eventId, event.id))
       .orderBy(...startNumberOrder(crewEntries.startNumber)),
@@ -157,7 +158,7 @@ function present(value: SQL | undefined): value is SQL {
   return Boolean(value);
 }
 
-export async function listPublishedPhotos(eventId: string, query: PublicQuery, scope: PhotoScope) {
+export async function listPublishedPhotos(eventId: string, query: PublicQuery, scope: PhotoScope, shuffle = false) {
   const filters: SQL[] = [eq(galleries.eventId, eventId), eq(photos.status, "published")];
   if (scope.type === "gallery") filters.push(eq(galleries.slug, scope.slug));
   if (scope.type === "inne") {
@@ -186,7 +187,7 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
   }
   if (query.q) {
     const like = `%${query.q.replace(/[%_]/g, "")}%`;
-    crewMatch.push(sql`(${crewEntries.startNumber} ilike ${like} or drivers.name ilike ${like} or codrivers.name ilike ${like})`);
+    crewMatch.push(sql`(${crewEntries.startNumber} ilike ${like} or ${crewEntries.car} ilike ${like} or drivers.name ilike ${like} or codrivers.name ilike ${like})`);
   }
   if (crewMatch.length) {
     const crewFilter = and(...crewMatch);
@@ -248,7 +249,7 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
         ) order by ${photoCrews.position})
         from ${photoCrews}
         inner join ${crewEntries} on ${crewEntries.id} = ${photoCrews.crewEntryId}
-        inner join ${people} drivers on drivers.id = ${crewEntries.driverId}
+        left join ${people} drivers on drivers.id = ${crewEntries.driverId}
         left join ${people} codrivers on codrivers.id = ${crewEntries.codriverId}
         left join ${competitions} on ${competitions.id} = ${crewEntries.competitionId}
         where ${photoCrews.photoId} = ${photos.id}
@@ -272,7 +273,7 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
     .orderBy(...order)
     .limit(query.view === "latest" && scope.type === "event" ? 10 : 5000);
 
-  return rows.map((row) => ({
+  const cards = rows.map((row) => ({
     id: row.id,
     width: row.width,
     height: row.height,
@@ -299,6 +300,34 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
     gallerySlug: row.gallerySlug,
     galleryTitle: row.galleryTitle,
   })) satisfies PhotoCard[];
+  return shuffle ? mixPhotos(cards) : cards;
+}
+
+function mixPhotos(photos: PhotoCard[]) {
+  const items = [...photos];
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const current = items[i];
+    items[i] = items[j];
+    items[j] = current;
+  }
+  const galleries = new Set(items.map((photo) => photo.gallerySlug));
+  if (galleries.size < 2) return items;
+  for (let i = 1; i < items.length; i += 1) {
+    if (items[i].gallerySlug !== items[i - 1].gallerySlug) continue;
+    let swap = -1;
+    for (let j = i + 1; j < items.length; j += 1) {
+      if (items[j].gallerySlug !== items[i].gallerySlug) {
+        swap = j;
+        break;
+      }
+    }
+    if (swap === -1) break;
+    const current = items[i];
+    items[i] = items[swap];
+    items[swap] = current;
+  }
+  return items;
 }
 
 function parseCrews(value: unknown): PhotoCrew[] {

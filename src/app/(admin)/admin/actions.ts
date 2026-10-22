@@ -105,6 +105,7 @@ export async function createEvent(_prev: FormState, formData: FormData): Promise
   const endsOn = readString(formData, "endsOn");
   const position = Number(readString(formData, "position") || "0");
   const galleryMinPhotos = Number(readString(formData, "galleryMinPhotos") || "8");
+  const shufflePhotos = formData.get("shufflePhotos") === "on";
   if (!seriesId || !name || !/^\d{4}-\d{2}-\d{2}$/.test(startsOn)) {
     return { error: "Wybierz cykl, nazwę i datę startu." };
   }
@@ -124,6 +125,7 @@ export async function createEvent(_prev: FormState, formData: FormData): Promise
       endsOn: /^\d{4}-\d{2}-\d{2}$/.test(endsOn) ? endsOn : null,
       position: Number.isInteger(position) ? position : 0,
       galleryMinPhotos,
+      shufflePhotos,
     })
     .returning();
   revalidatePath("/admin/rajdy");
@@ -137,6 +139,7 @@ export async function updateEvent(eventId: string, _prev: FormState, formData: F
   const endsOn = readString(formData, "endsOn");
   const position = Number(readString(formData, "position") || "0");
   const galleryMinPhotos = Number(readString(formData, "galleryMinPhotos") || "8");
+  const shufflePhotos = formData.get("shufflePhotos") === "on";
   if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(startsOn)) return { error: "Podaj nazwę i datę startu." };
   if (!Number.isInteger(galleryMinPhotos) || galleryMinPhotos < 1 || galleryMinPhotos > 500) {
     return { error: "Próg galerii musi być liczbą od 1 do 500." };
@@ -149,6 +152,7 @@ export async function updateEvent(eventId: string, _prev: FormState, formData: F
       endsOn: /^\d{4}-\d{2}-\d{2}$/.test(endsOn) ? endsOn : null,
       position: Number.isInteger(position) ? position : 0,
       galleryMinPhotos,
+      shufflePhotos,
     })
     .where(eq(events.id, eventId));
   revalidatePath(`/admin/rajdy/${eventId}`);
@@ -341,12 +345,12 @@ export async function createCrewEntry(eventId: string, _prev: FormState, formDat
   const car = readString(formData, "car");
   const numberError = startNumberError(startNumber);
   if (numberError) return { error: numberError };
-  if (!driver || !className || !car) return { error: "Uzupełnij kierowcę, klasę i auto." };
+  if (!className || !car) return { error: "Uzupełnij klasę i auto." };
   const taken = await getDb().query.crewEntries.findFirst({
     where: and(eq(crewEntries.eventId, eventId), sql`lower(${crewEntries.startNumber}) = ${startNumberKey(startNumber)}`),
   });
   if (taken) return { error: "Ten numer startowy już jest na liście." };
-  const driverId = await findOrCreatePerson(driver);
+  const driverId = driver ? await findOrCreatePerson(driver) : null;
   const codriverId = codriver ? await findOrCreatePerson(codriver) : null;
   if (codriverId && codriverId === driverId) return { error: "Kierowca i pilot muszą być różnymi osobami." };
   const competition = await competitionForEvent(eventId, readString(formData, "competitionId"));
@@ -394,11 +398,11 @@ export async function importCrewEntries(eventId: string, _prev: FormState, formD
   const taken = new Set(existing.map((row) => startNumberKey(row.startNumber)));
   const fresh = parsed.rows.filter((row) => !taken.has(startNumberKey(row.startNumber)));
   const skipped = parsed.rows.filter((row) => taken.has(startNumberKey(row.startNumber))).map((row) => row.startNumber);
-  const samePerson = fresh.find((row) => row.codriver && slugify(row.driver) === slugify(row.codriver));
+  const samePerson = fresh.find((row) => row.driver && row.codriver && slugify(row.driver) === slugify(row.codriver));
   if (samePerson) return { error: `Wiersz ${samePerson.line}: kierowca i pilot muszą być różnymi osobami.` };
 
   for (const row of fresh) {
-    const driverId = await findOrCreatePerson(row.driver);
+    const driverId = row.driver ? await findOrCreatePerson(row.driver) : null;
     const codriverId = row.codriver ? await findOrCreatePerson(row.codriver) : null;
     await getDb().insert(crewEntries).values({
       eventId,

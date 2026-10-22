@@ -56,16 +56,57 @@ function fitRoutes(map: maplibregl.Map, routes: RouteMap | null) {
     count += 1;
   };
   for (const feature of routes?.features ?? []) {
-    const geometry = feature.geometry;
-    if (geometry.type === "Point") extend(geometry.coordinates);
-    else if (geometry.type === "LineString") geometry.coordinates.forEach(extend);
-    else geometry.coordinates.forEach((ring) => ring.forEach(extend));
+    extendGeometry(extend, feature.geometry);
   }
   if (count > 1) map.fitBounds(bounds, { padding: 28, maxZoom: 13 });
   else if (count === 1) {
     map.setCenter(bounds.getCenter());
     map.setZoom(13);
   }
+}
+
+function extendGeometry(extend: (position: [number, number]) => void, geometry: RouteMap["features"][number]["geometry"]) {
+  if (geometry.type === "Point") extend(geometry.coordinates);
+  else if (geometry.type === "LineString") geometry.coordinates.forEach(extend);
+  else geometry.coordinates.forEach((ring) => ring.forEach(extend));
+}
+
+function fitPlace(
+  map: maplibregl.Map,
+  routes: RouteMap | null,
+  stageId: string,
+  pin: { latitude: number | null; longitude: number | null },
+) {
+  const course = new maplibregl.LngLatBounds();
+  const spots = new maplibregl.LngLatBounds();
+  let courseCount = 0;
+  let spotCount = 0;
+  for (const feature of routes?.features ?? []) {
+    if (feature.properties.stageId !== stageId) continue;
+    if (feature.geometry.type === "Point") {
+      spots.extend(feature.geometry.coordinates);
+      spotCount += 1;
+      continue;
+    }
+    extendGeometry((position) => {
+      course.extend(position);
+      courseCount += 1;
+    }, feature.geometry);
+  }
+  if (courseCount > 1) {
+    if (spotCount > 0) course.extend(spots);
+    map.fitBounds(course, { padding: 32, maxZoom: 15, duration: 600 });
+    return;
+  }
+  if (pin.longitude != null && pin.latitude != null) {
+    map.easeTo({ center: [pin.longitude, pin.latitude], zoom: 14, duration: 600 });
+    return;
+  }
+  if (spotCount > 1) {
+    map.fitBounds(spots, { padding: 32, maxZoom: 14, duration: 600 });
+    return;
+  }
+  if (spotCount === 1) map.easeTo({ center: spots.getCenter(), zoom: 14, duration: 600 });
 }
 
 export function PinMap({
@@ -90,7 +131,6 @@ export function PinMap({
   const routesRef = useRef(routes);
   const stageIdRef = useRef(stageId);
   const pointRef = useRef({ latitude, longitude });
-  const focusedPin = useRef(focusPin);
   useEffect(() => {
     onChangeRef.current = onChange;
     routesRef.current = routes;
@@ -146,7 +186,8 @@ export function PinMap({
       });
       applyRoutePaint(map, stageIdRef.current);
       const current = pointRef.current;
-      if (current.latitude == null || current.longitude == null) fitRoutes(map, routesRef.current);
+      if (stageIdRef.current) fitPlace(map, routesRef.current, stageIdRef.current, current);
+      else if (current.latitude == null || current.longitude == null) fitRoutes(map, routesRef.current);
     });
     map.on("click", (event: maplibregl.MapMouseEvent) => {
       marker.setLngLat([event.lngLat.lng, event.lngLat.lat]).addTo(map);
@@ -169,26 +210,22 @@ export function PinMap({
     if (!map || !marker) return;
     if (latitude == null || longitude == null) {
       marker.remove();
-      if (map.isStyleLoaded()) fitRoutes(map, routesRef.current);
+      if (map.isStyleLoaded()) {
+        if (stageIdRef.current) fitPlace(map, routesRef.current, stageIdRef.current, { latitude: null, longitude: null });
+        else fitRoutes(map, routesRef.current);
+      }
       return;
     }
     marker.setLngLat([longitude, latitude]).addTo(map);
   }, [latitude, longitude]);
 
   useEffect(() => {
-    if (focusPin === focusedPin.current) return;
-    focusedPin.current = focusPin;
-    const map = mapRef.current;
-    if (!map || latitude == null || longitude == null) return;
-    map.setCenter([longitude, latitude]);
-    map.setZoom(13);
-  }, [focusPin, latitude, longitude]);
-
-  useEffect(() => {
     const map = mapRef.current;
     if (!map?.isStyleLoaded()) return;
     applyRoutePaint(map, stageId);
-  }, [stageId]);
+    if (!stageId) return;
+    fitPlace(map, routesRef.current, stageId, pointRef.current);
+  }, [stageId, focusPin]);
 
   return <div ref={ref} className="h-80 overflow-hidden rounded-lg border border-line" />;
 }

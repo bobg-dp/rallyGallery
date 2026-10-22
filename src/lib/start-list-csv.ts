@@ -49,8 +49,8 @@ export function parseStartListCsv(text: string): { rows: StartListRow[] } | { er
     const car = cell("car").replace(/\s+/g, " ");
     const numberError = startNumberError(startNumber);
     if (numberError) return { error: `Wiersz ${record.line}: ${numberError.charAt(0).toLowerCase()}${numberError.slice(1)}` };
-    if (!driver || !className || !car) {
-      return { error: `Wiersz ${record.line}: uzupełnij kierowcę, klasę i samochód.` };
+    if (!className || !car) {
+      return { error: `Wiersz ${record.line}: uzupełnij klasę i samochód.` };
     }
     if (driver.length > 120 || codriver.length > 120 || className.length > 80 || car.length > 120) {
       return { error: `Wiersz ${record.line}: któreś pole jest za długie.` };

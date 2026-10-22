@@ -8,7 +8,7 @@ export type CrewOption = {
   startNumber: string;
   className: string;
   car: string;
-  driverName: string;
+  driverName: string | null;
   codriverName: string | null;
   competitionName: string | null;
 };
@@ -17,7 +17,8 @@ const MAX_CREWS = 30;
 
 export function crewOptionLabel(crew: CrewOption) {
   const names = [crew.driverName, crew.codriverName].filter(Boolean).join(" / ");
-  return `${crew.startNumber} ${names}${crew.competitionName ? ` · ${crew.competitionName}` : ""}`;
+  const who = names || crew.car;
+  return `${crew.startNumber} ${who}${crew.competitionName ? ` · ${crew.competitionName}` : ""}`;
 }
 
 export function carTextForCrews(crews: CrewOption[], ids: string[]) {
@@ -114,7 +115,7 @@ export function CrewPicker({
           ) : (
             selected.map((crew) => (
               <span key={crew.id} className="inline-flex items-center gap-1 rounded-full border border-line bg-paper px-2 py-1 text-xs">
-                {crew.startNumber} {crew.driverName}
+                {crew.startNumber} {crew.driverName || crew.car}
                 <button
                   type="button"
                   className="px-1 text-muted"

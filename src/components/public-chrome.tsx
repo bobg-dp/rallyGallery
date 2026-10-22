@@ -23,6 +23,7 @@ export function PublicChrome({
   formPath,
   showViews,
   authorLabel,
+  shuffle = false,
   children,
 }: {
   bundle: Bundle;
@@ -30,9 +31,11 @@ export function PublicChrome({
   formPath: string;
   showViews: boolean;
   authorLabel?: string;
+  shuffle?: boolean;
   children: React.ReactNode;
 }) {
   const eventPath = `/${bundle.event.slug}`;
+  const visibleViews = shuffle ? views.filter((view) => view.id !== "galleries") : views;
   const classNames = [
     ...new Set(
       bundle.classes
@@ -97,7 +100,7 @@ export function PublicChrome({
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-6">
         {showViews ? (
           <div className="flex flex-wrap gap-2">
-            {views.map((view) => (
+            {visibleViews.map((view) => (
               <Link
                 key={view.id}
                 href={withQuery(eventPath, query, { view: view.id, photo: undefined })}
@@ -117,13 +120,13 @@ export function PublicChrome({
           {query.display !== "grid" ? <input type="hidden" name="display" value={query.display} /> : null}
           {query.author ? <input type="hidden" name="author" value={query.author} /> : null}
           {query.competition ? <input type="hidden" name="typ" value={query.competition} /> : null}
-          <input className={inputClass} name="q" defaultValue={query.q ?? ""} placeholder="Numer, kierowca albo pilot" />
+          <input className={inputClass} name="q" defaultValue={query.q ?? ""} placeholder="Numer, auto, kierowca albo pilot" />
           <select className={inputClass} name="crew" defaultValue={query.crew ?? ""}>
             <option value="">Wszyscy zawodnicy</option>
             <option value={spectatorsCrew}>Kibice</option>
             {crews.map((crew) => (
               <option key={crew.startNumber} value={String(crew.startNumber)}>
-                {crew.startNumber} {crew.driverName}
+                {crew.startNumber} {crew.driverName || crew.car}
               </option>
             ))}
           </select>
@@ -151,7 +154,7 @@ export function PublicChrome({
               </option>
             ))}
           </select>
-          {query.view === "all" ? (
+          {query.view === "all" && !shuffle ? (
             <select className={inputClass} name="sort" defaultValue={query.sort}>
               <option value="time">Czas wykonania</option>
               <option value="stage">Miejsce</option>

@@ -1,15 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { createCrew, deleteGallery, deletePhotos, setPublished, updateGallery } from "@/app/(studio)/studio/actions";
+import { useRef, useState } from "react";
+import { applyBulk, createCrew, deleteGallery, deletePhotos, setPublished, updateGallery } from "@/app/(studio)/studio/actions";
 import { ActionForm } from "./action-form";
+import { CarField } from "./car-field";
+import { carForCrewSelection, CrewPicker } from "./crew-picker";
 import { Field, SelectInput, TextInput } from "./field";
 import { PhotoEditor } from "./photo-editor";
 import type { RouteMap } from "@/lib/route-map";
 import { btnDanger, btnGhost, btnPrimary } from "./styles";
+
+const PinMap = dynamic(() => import("./pin-map").then((mod) => mod.PinMap), { ssr: false });
 
 type Stage = { id: string; code: string; name: string; latitude: number | null; longitude: number | null };
 type Crew = {
@@ -17,7 +22,7 @@ type Crew = {
   startNumber: string;
   className: string;
   car: string;
-  driverName: string;
+  driverName: string | null;
   codriverName: string | null;
   competitionName: string | null;
 };
@@ -68,7 +73,38 @@ export function Desk({
   const [selected, setSelected] = useState<string[]>(photos[0] ? [photos[0].id] : []);
   const [editorId, setEditorId] = useState<string | null>(null);
   const [authorMode, setAuthorMode] = useState("existing");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkStageId, setBulkStageId] = useState("");
+  const [bulkLatitude, setBulkLatitude] = useState<number | null>(null);
+  const [bulkLongitude, setBulkLongitude] = useState<number | null>(null);
+  const [pinMode, setPinMode] = useState<"" | "set" | "clear">("");
+  const [focusPin, setFocusPin] = useState(0);
+  const [bulkCrewIds, setBulkCrewIds] = useState<string[]>([]);
+  const [bulkSpectators, setBulkSpectators] = useState(false);
+  const [bulkUnchanged, setBulkUnchanged] = useState(true);
+  const [bulkCar, setBulkCar] = useState("");
+  const [applyCar, setApplyCar] = useState(false);
+  const pinFromStage = useRef(false);
   const editor = photos.find((photo) => photo.id === editorId) ?? null;
+
+  function chooseBulkStage(nextId: string) {
+    setBulkStageId(nextId);
+    const stage = stages.find((item) => item.id === nextId);
+    if (stage?.latitude != null && stage.longitude != null) {
+      setBulkLatitude(stage.latitude);
+      setBulkLongitude(stage.longitude);
+      setPinMode("set");
+      pinFromStage.current = true;
+      setFocusPin((value) => value + 1);
+      return;
+    }
+    if (pinFromStage.current) {
+      setBulkLatitude(null);
+      setBulkLongitude(null);
+      setPinMode("");
+      pinFromStage.current = false;
+    }
+  }
 
   function toggle(id: string) {
     setSelected((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -168,10 +204,10 @@ export function Desk({
                 </SelectInput>
               </Field>
             ) : null}
-            <Field label="Kierowca">
-              <TextInput name="driver" />
+            <Field label="Kierowca, opcjonalnie">
+              <TextInput name="driver" placeholder="Zostaw puste przy aucie bez załogi" />
             </Field>
-            <Field label="Pilot">
+            <Field label="Pilot, opcjonalnie">
               <TextInput name="codriver" />
             </Field>
             <Field label="Auto">
@@ -195,6 +231,106 @@ export function Desk({
           Usuń zaznaczone
         </button>
       </div>
+
+      <details className="rounded-xl border border-line bg-panel p-4" onToggle={(event) => setBulkOpen(event.currentTarget.open)}>
+        <summary className="cursor-pointer text-sm">Zmień zaznaczone</summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-sm text-muted">
+            Miejsce i pinezka zapiszą się na zaznaczonych zdjęciach. Pozostałe pola zostają bez zmian, dopóki ich nie ustawisz.
+          </p>
+          <ActionForm action={applyBulk.bind(null, gallery.id)} submit="Zastosuj do zaznaczonych" className="grid gap-3 md:grid-cols-2">
+            {selected.map((id) => (
+              <input key={id} type="hidden" name="photoId" value={id} />
+            ))}
+            <Field label="Miejsce">
+              <SelectInput name="stageId" value={bulkStageId} onChange={(event) => chooseBulkStage(event.target.value)}>
+                <option value="">Bez zmian</option>
+                <option value="clear">Usuń miejsce</option>
+                {stages.map((stage) => (
+                  <option key={stage.id} value={stage.id}>
+                    {stage.code} {stage.name}
+                    {stage.latitude != null && stage.longitude != null ? " · namiar" : ""}
+                  </option>
+                ))}
+              </SelectInput>
+            </Field>
+            <div className="block space-y-1.5 text-sm">
+              <span className="text-muted">Zawodnicy</span>
+              <CrewPicker
+                crews={crews}
+                crewIds={bulkCrewIds}
+                spectators={bulkSpectators}
+                unchanged={bulkUnchanged}
+                allowUnchanged
+                onChange={(next) => {
+                  setBulkCrewIds(next.crewIds);
+                  setBulkSpectators(next.spectators);
+                  setBulkUnchanged(next.unchanged);
+                  const filled = carForCrewSelection(bulkCar, crews, bulkCrewIds, next);
+                  if (filled !== bulkCar || (next.added && next.crewIds.length === 1)) setApplyCar(true);
+                  setBulkCar(filled);
+                }}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <input type="checkbox" name="setCar" checked={applyCar} onChange={(event) => setApplyCar(event.target.checked)} />
+              Ustaw auto
+            </label>
+            <Field label="Auto">
+              <CarField value={bulkCar} onValueChange={setBulkCar} />
+            </Field>
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <input type="checkbox" name="setCaption" />
+              Ustaw podpis
+            </label>
+            <Field label="Podpis">
+              <TextInput name="caption" />
+            </Field>
+            <div className="space-y-2 md:col-span-2">
+              <p className="text-sm text-muted">
+                {pinMode === "clear"
+                  ? "Pinezka zostanie zdjęta z zaznaczonych zdjęć."
+                  : pinMode === "set"
+                    ? "Ta pinezka trafi na zaznaczone zdjęcia. Możesz ją przesunąć."
+                    : "Pinezka zostaje bez zmian, dopóki nie klikniesz mapy. Miejsce z namiaru stawia ją samo."}
+                {routes && routes.features.length > 0 ? " Odcinki rajdu są na mapie." : ""}
+              </p>
+              {bulkOpen ? (
+                <PinMap
+                  latitude={bulkLatitude}
+                  longitude={bulkLongitude}
+                  routes={routes}
+                  stageId={bulkStageId === "clear" ? "" : bulkStageId}
+                  focusPin={focusPin}
+                  onChange={(point) => {
+                    setBulkLatitude(point.latitude);
+                    setBulkLongitude(point.longitude);
+                    setPinMode("set");
+                    pinFromStage.current = false;
+                  }}
+                />
+              ) : (
+                <div className="h-80 rounded-lg border border-line" />
+              )}
+              <button
+                type="button"
+                className={btnGhost}
+                onClick={() => {
+                  setBulkLatitude(null);
+                  setBulkLongitude(null);
+                  setPinMode("clear");
+                  pinFromStage.current = false;
+                }}
+              >
+                Usuń pinezkę
+              </button>
+              <input type="hidden" name="pinMode" value={pinMode} />
+              <input type="hidden" name="latitude" value={bulkLatitude ?? ""} />
+              <input type="hidden" name="longitude" value={bulkLongitude ?? ""} />
+            </div>
+          </ActionForm>
+        </div>
+      </details>
 
       {photos.length === 0 ? <p className="text-sm text-muted">Wgraj zdjęcia, a potem wybierz kadr.</p> : null}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">

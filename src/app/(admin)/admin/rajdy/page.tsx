@@ -62,6 +62,13 @@ export default async function Page() {
           <Field label="Próg listy galerii">
             <TextInput name="galleryMinPhotos" type="number" defaultValue={8} />
           </Field>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="shufflePhotos" className="mt-1" />
+            <span>
+              Losowa siatka
+              <span className="block text-muted">Zdjęcia z całego rajdu mieszają się przy każdym odświeżeniu.</span>
+            </span>
+          </label>
         </ActionForm>
       ) : (
         <p className="text-sm text-muted">Najpierw załóż cykl.</p>

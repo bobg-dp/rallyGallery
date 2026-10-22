@@ -29,9 +29,11 @@ export async function EventView({
 }) {
   const bundle = await getEventBundle(eventSlug);
   if (!bundle) notFound();
-  const showCards = showViews && query.view === "galleries";
+  const mixAll = bundle.event.shufflePhotos && scope.type === "event";
+  const activeQuery = mixAll && query.view === "galleries" ? { ...query, view: "all" as const } : query;
+  const showCards = showViews && activeQuery.view === "galleries";
   const [photos, cards, author, hero, routeRow] = await Promise.all([
-    showCards ? Promise.resolve([]) : listPublishedPhotos(bundle.event.id, query, scope),
+    showCards ? Promise.resolve([]) : listPublishedPhotos(bundle.event.id, activeQuery, scope, mixAll && activeQuery.view === "all"),
     showCards ? listGalleryCards(bundle.event.id, bundle.event.galleryMinPhotos, query.competition) : Promise.resolve(null),
     query.author
       ? getDb().query.authors.findFirst({ where: eq(authors.slug, query.author) })
@@ -46,7 +48,7 @@ export async function EventView({
   return (
     <>
       {hero ? <EventHero src={hero.src} alt={hero.alt} title={bundle.event.name} /> : null}
-      <PublicChrome bundle={bundle} query={query} formPath={formPath} showViews={showViews} authorLabel={author?.name}>
+      <PublicChrome bundle={bundle} query={activeQuery} formPath={formPath} showViews={showViews} authorLabel={author?.name} shuffle={mixAll}>
         {intro}
         {showCards && cards ? (
           <GalleryBoard eventSlug={eventSlug} query={query} featured={cards.featured} inne={cards.inne} />

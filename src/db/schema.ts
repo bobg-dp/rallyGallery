@@ -60,6 +60,7 @@ export const events = pgTable("events", {
   endsOn: date("ends_on"),
   position: integer("position").notNull().default(0),
   galleryMinPhotos: integer("gallery_min_photos").notNull().default(8),
+  shufflePhotos: boolean("shuffle_photos").notNull().default(false),
   heroPhotoId: uuid("hero_photo_id").references((): AnyPgColumn => photos.id, { onDelete: "set null" }),
   routeMapUrl: text("route_map_url"),
   routeMap: jsonb("route_map").$type<RouteMap | null>(),
@@ -116,9 +117,7 @@ export const crewEntries = pgTable(
     startNumber: text("start_number").notNull(),
     className: text("class_name").notNull(),
     car: text("car").notNull(),
-    driverId: uuid("driver_id")
-      .notNull()
-      .references(() => people.id, { onDelete: "restrict" }),
+    driverId: uuid("driver_id").references(() => people.id, { onDelete: "restrict" }),
     codriverId: uuid("codriver_id").references(() => people.id, { onDelete: "restrict" }),
   },
   (table) => [uniqueIndex("crew_event_number").on(table.eventId, sql`lower(${table.startNumber})`)],

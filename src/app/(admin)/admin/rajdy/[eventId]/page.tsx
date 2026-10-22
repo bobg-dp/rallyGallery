@@ -42,7 +42,7 @@ export default async function Page({
         codriverName: codrivers.name,
       })
       .from(crewEntries)
-      .innerJoin(people, eq(crewEntries.driverId, people.id))
+      .leftJoin(people, eq(crewEntries.driverId, people.id))
       .leftJoin(codrivers, eq(crewEntries.codriverId, codrivers.id))
       .where(eq(crewEntries.eventId, eventId))
       .orderBy(...startNumberOrder(crewEntries.startNumber)),
@@ -94,6 +94,15 @@ export default async function Page({
         <Field label="Próg listy galerii">
           <TextInput name="galleryMinPhotos" type="number" defaultValue={event.galleryMinPhotos} />
         </Field>
+        <label className="flex items-start gap-2 text-sm md:col-span-2">
+          <input type="checkbox" name="shufflePhotos" defaultChecked={event.shufflePhotos} className="mt-1" />
+          <span>
+            Losowa siatka
+            <span className="block text-muted">
+              Po każdym odświeżeniu zdjęcia z całego rajdu mieszają się w jedną siatkę, bez podziału na galerie.
+            </span>
+          </span>
+        </label>
       </ActionForm>
 
       <section className="space-y-3">
@@ -227,33 +236,36 @@ export default async function Page({
       <section className="space-y-3">
         <h2 className="font-display text-2xl">Lista startowa</h2>
         <ul className="space-y-2">
-          {crewRows.map((crew) => (
-            <li key={crew.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-2 text-sm">
-              <span>
-                {crew.startNumber} {crew.driverName}
-                {crew.codriverName ? ` / ${crew.codriverName}` : ""} · {crew.className} · {crew.car}
-              </span>
-              <div className="flex items-center gap-2">
-                {competitionRows.length > 0 ? (
-                  <ActionForm action={setCrewCompetition.bind(null, event.id, crew.id)} submit="Zapisz typ" className="flex items-end gap-2">
-                    <SelectInput name="competitionId" defaultValue={crew.competitionId ?? ""}>
-                      <option value="">Bez typu</option>
-                      {competitionRows.map((competition) => (
-                        <option key={competition.id} value={competition.id}>
-                          {competition.name}
-                        </option>
-                      ))}
-                    </SelectInput>
-                  </ActionForm>
-                ) : null}
-                <form action={deleteCrewEntry.bind(null, event.id, crew.id)}>
-                  <button className={btnDanger} type="submit">
-                    Usuń
-                  </button>
-                </form>
-              </div>
-            </li>
-          ))}
+          {crewRows.map((crew) => {
+            const names = [crew.driverName, crew.codriverName].filter(Boolean).join(" / ");
+            return (
+              <li key={crew.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-3 py-2 text-sm">
+                <span>
+                  {crew.startNumber}
+                  {names ? ` ${names}` : ""} · {crew.className} · {crew.car}
+                </span>
+                <div className="flex items-center gap-2">
+                  {competitionRows.length > 0 ? (
+                    <ActionForm action={setCrewCompetition.bind(null, event.id, crew.id)} submit="Zapisz typ" className="flex items-end gap-2">
+                      <SelectInput name="competitionId" defaultValue={crew.competitionId ?? ""}>
+                        <option value="">Bez typu</option>
+                        {competitionRows.map((competition) => (
+                          <option key={competition.id} value={competition.id}>
+                            {competition.name}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </ActionForm>
+                  ) : null}
+                  <form action={deleteCrewEntry.bind(null, event.id, crew.id)}>
+                    <button className={btnDanger} type="submit">
+                      Usuń
+                    </button>
+                  </form>
+                </div>
+              </li>
+            );
+          })}
         </ul>
         <ActionForm action={importCrewEntries.bind(null, event.id)} submit="Importuj CSV" className="grid gap-3 rounded-xl border border-line bg-panel p-4 md:grid-cols-2">
           <Field label="Plik CSV">
@@ -272,7 +284,7 @@ export default async function Page({
             </Field>
           ) : null}
           <p className="text-sm text-muted md:col-span-2">
-            Kolumny oddzielone średnikiem: Numer Startowy, Kierowca, Pilot, Klasa, Samochód. Numery, które już są na liście, zostają pominięte.
+            Kolumny oddzielone średnikiem: Numer Startowy, Kierowca, Pilot, Klasa, Samochód. Kierowca i pilot mogą zostać puste. Numery, które już są na liście, zostają pominięte.
           </p>
         </ActionForm>
         <ActionForm action={createCrewEntry.bind(null, event.id)} submit="Dodaj załogę" className="grid gap-3 md:grid-cols-2">
@@ -294,10 +306,10 @@ export default async function Page({
               </SelectInput>
             </Field>
           ) : null}
-          <Field label="Kierowca">
-            <TextInput name="driver" required />
+          <Field label="Kierowca, opcjonalnie">
+            <TextInput name="driver" placeholder="Zostaw puste przy aucie bez załogi" />
           </Field>
-          <Field label="Pilot">
+          <Field label="Pilot, opcjonalnie">
             <TextInput name="codriver" />
           </Field>
           <Field label="Auto">
