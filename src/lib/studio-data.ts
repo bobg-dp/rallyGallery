@@ -67,7 +67,7 @@ export async function getDesk(galleryId: string) {
       .where(eq(crewEntries.eventId, gallery.eventId))
       .orderBy(...startNumberOrder(crewEntries.startNumber)),
     getDb()
-      .select({ id: competitions.id, name: competitions.name })
+      .select({ id: competitions.id, name: competitions.name, heroPhotoId: competitions.heroPhotoId })
       .from(competitions)
       .where(eq(competitions.eventId, gallery.eventId))
       .orderBy(asc(competitions.position), asc(competitions.name)),

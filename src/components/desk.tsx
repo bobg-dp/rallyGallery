@@ -64,7 +64,7 @@ export function Desk({
   };
   stages: Stage[];
   routes: RouteMap | null;
-  competitions: { id: string; name: string }[];
+  competitions: { id: string; name: string; heroPhotoId: string | null }[];
   crews: Crew[];
   authors: { id: string; name: string }[];
   photos: Photo[];
@@ -85,7 +85,8 @@ export function Desk({
   const [bulkCar, setBulkCar] = useState("");
   const [applyCar, setApplyCar] = useState(false);
   const pinFromStage = useRef(false);
-  const editor = photos.find((photo) => photo.id === editorId) ?? null;
+  const editorIndex = photos.findIndex((photo) => photo.id === editorId);
+  const editor = editorIndex >= 0 ? photos[editorIndex] : null;
 
   function chooseBulkStage(nextId: string) {
     setBulkStageId(nextId);
@@ -343,7 +344,11 @@ export function Desk({
               <input type="checkbox" checked={selected.includes(photo.id)} onChange={() => toggle(photo.id)} />
               {photo.status === "published" ? "opublikowane" : "szkic"}
             </label>
-            {gallery.heroPhotoId === photo.id ? (
+            {competitions.some((competition) => competition.heroPhotoId === photo.id) ? (
+              <span className="absolute top-2 right-2 max-w-[58%] truncate rounded bg-ink px-2 py-1 text-xs text-paper">
+                {competitions.find((competition) => competition.heroPhotoId === photo.id)?.name}
+              </span>
+            ) : gallery.heroPhotoId === photo.id ? (
               <span className="absolute top-2 right-2 rounded bg-ink px-2 py-1 text-xs text-paper">Hero</span>
             ) : null}
           </div>
@@ -354,10 +359,15 @@ export function Desk({
           key={editor.id}
           galleryId={gallery.id}
           heroPhotoId={gallery.heroPhotoId}
+          competitions={competitions}
           photo={editor}
           stages={stages}
           routes={routes}
           crews={crews}
+          index={editorIndex}
+          total={photos.length}
+          onPrev={editorIndex > 0 ? () => setEditorId(photos[editorIndex - 1].id) : undefined}
+          onNext={editorIndex < photos.length - 1 ? () => setEditorId(photos[editorIndex + 1].id) : undefined}
           onClose={() => setEditorId(null)}
         />
       ) : null}

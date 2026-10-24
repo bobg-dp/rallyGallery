@@ -56,7 +56,34 @@ export type GalleryCard = {
   coverUrl: string | null;
 };
 
-export async function getEventHero(eventId: string) {
+export type EventHeroSlide = {
+  src: string;
+  alt: string;
+  label: string | null;
+};
+
+export async function getEventHero(eventId: string): Promise<EventHeroSlide[]> {
+  const typed = await getDb()
+    .select({
+      viewKey: photos.viewKey,
+      caption: photos.caption,
+      authorName: authors.name,
+      competitionName: competitions.name,
+    })
+    .from(competitions)
+    .innerJoin(photos, eq(competitions.heroPhotoId, photos.id))
+    .innerJoin(galleries, eq(photos.galleryId, galleries.id))
+    .innerJoin(authors, eq(galleries.authorId, authors.id))
+    .where(and(eq(competitions.eventId, eventId), eq(galleries.eventId, eventId), eq(photos.status, "published")))
+    .orderBy(asc(competitions.position), asc(competitions.name));
+  if (typed.length) {
+    return typed.map((row) => ({
+      src: derivativeUrl(row.viewKey),
+      alt: row.caption || `Zdjęcie: ${row.authorName}`,
+      label: row.competitionName,
+    }));
+  }
+
   const [row] = await getDb()
     .select({
       viewKey: photos.viewKey,
@@ -69,11 +96,14 @@ export async function getEventHero(eventId: string) {
     .innerJoin(authors, eq(galleries.authorId, authors.id))
     .where(and(eq(events.id, eventId), eq(photos.status, "published")))
     .limit(1);
-  if (!row) return null;
-  return {
-    src: derivativeUrl(row.viewKey),
-    alt: row.caption || `Zdjęcie: ${row.authorName}`,
-  };
+  if (!row) return [];
+  return [
+    {
+      src: derivativeUrl(row.viewKey),
+      alt: row.caption || `Zdjęcie: ${row.authorName}`,
+      label: null,
+    },
+  ];
 }
 
 export async function getHomeEvent() {

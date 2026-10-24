@@ -50,7 +50,7 @@ async function ensureDemoCompetitions(db: AppDb) {
   const specs = [
     { name: "Rajd Okręgowy", slug: "rajd-okregowy", position: 1, numbers: ["1"] },
     { name: "Rally Sprint", slug: "rally-sprint", position: 2, numbers: ["7"] },
-    { name: "KJS", slug: "kjs", position: 3, numbers: ["14"] },
+    { name: "Konkursowa Jazda Samochodem", slug: "kjs", position: 3, numbers: ["14"] },
   ];
   for (const spec of specs) {
     let row = await db.query.competitions.findFirst({

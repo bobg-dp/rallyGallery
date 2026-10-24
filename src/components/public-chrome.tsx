@@ -24,6 +24,7 @@ export function PublicChrome({
   showViews,
   authorLabel,
   shuffle = false,
+  hideTitle = false,
   children,
 }: {
   bundle: Bundle;
@@ -32,6 +33,7 @@ export function PublicChrome({
   showViews: boolean;
   authorLabel?: string;
   shuffle?: boolean;
+  hideTitle?: boolean;
   children: React.ReactNode;
 }) {
   const eventPath = `/${bundle.event.slug}`;
@@ -56,11 +58,13 @@ export function PublicChrome({
     <div>
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-4 px-4 py-6">
-          <div>
-            <p className="text-sm text-muted">{bundle.seriesName}</p>
-            <h1 className="font-display text-4xl tracking-tight md:text-5xl">{bundle.event.name}</h1>
-          </div>
-          <Link href="/login" className="text-sm text-muted underline-offset-4 hover:underline">
+          {hideTitle ? null : (
+            <div>
+              <p className="text-sm text-muted">{bundle.seriesName}</p>
+              <h1 className="font-display text-4xl tracking-tight md:text-5xl">{bundle.event.name}</h1>
+            </div>
+          )}
+          <Link href="/login" className="ml-auto text-sm text-muted underline-offset-4 hover:underline">
             Edycja
           </Link>
         </div>

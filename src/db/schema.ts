@@ -102,6 +102,7 @@ export const competitions = pgTable(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     position: integer("position").notNull().default(0),
+    heroPhotoId: uuid("hero_photo_id").references((): AnyPgColumn => photos.id, { onDelete: "set null" }),
   },
   (table) => [uniqueIndex("competitions_event_slug").on(table.eventId, table.slug)],
 );
@@ -236,6 +237,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
 
 export const competitionsRelations = relations(competitions, ({ one, many }) => ({
   event: one(events, { fields: [competitions.eventId], references: [events.id] }),
+  heroPhoto: one(photos, { fields: [competitions.heroPhotoId], references: [photos.id] }),
   crews: many(crewEntries),
 }));
 

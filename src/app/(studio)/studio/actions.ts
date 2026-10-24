@@ -339,6 +339,32 @@ export async function setPublished(galleryId: string, photoIds: string[], publis
   refresh(galleryId, event?.slug);
 }
 
+export async function setCompetitionHero(galleryId: string, competitionId: string, photoId: string | null) {
+  await requireUser();
+  const gallery = await getDb().query.galleries.findFirst({ where: eq(galleries.id, galleryId) });
+  if (!gallery) return;
+  const competition = await getDb().query.competitions.findFirst({
+    where: and(eq(competitions.id, competitionId), eq(competitions.eventId, gallery.eventId)),
+  });
+  if (!competition) return;
+  if (photoId) {
+    const [photo] = await getDb()
+      .select({ id: photos.id })
+      .from(photos)
+      .innerJoin(galleries, eq(photos.galleryId, galleries.id))
+      .where(and(eq(photos.id, photoId), eq(galleries.eventId, gallery.eventId)))
+      .limit(1);
+    if (!photo) return;
+    await getDb()
+      .update(competitions)
+      .set({ heroPhotoId: null })
+      .where(and(eq(competitions.eventId, gallery.eventId), eq(competitions.heroPhotoId, photoId)));
+  }
+  await getDb().update(competitions).set({ heroPhotoId: photoId }).where(eq(competitions.id, competition.id));
+  const event = await getDb().query.events.findFirst({ where: eq(events.id, gallery.eventId) });
+  refresh(galleryId, event?.slug);
+}
+
 export async function setEventHero(galleryId: string, photoId: string | null) {
   await requireUser();
   const gallery = await getDb().query.galleries.findFirst({ where: eq(galleries.id, galleryId) });

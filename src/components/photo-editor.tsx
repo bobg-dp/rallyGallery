@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { savePhoto, setEventHero } from "@/app/(studio)/studio/actions";
+import { savePhoto, setCompetitionHero, setEventHero } from "@/app/(studio)/studio/actions";
 import { ActionForm } from "./action-form";
 import { CarField } from "./car-field";
 import { carForCrewSelection, carTextForCrews, CrewPicker, type CrewOption } from "./crew-picker";
@@ -35,18 +35,28 @@ type Photo = {
 export function PhotoEditor({
   galleryId,
   heroPhotoId,
+  competitions,
   photo,
   stages,
   routes,
   crews,
+  index,
+  total,
+  onPrev,
+  onNext,
   onClose,
 }: {
   galleryId: string;
   heroPhotoId: string | null;
+  competitions: { id: string; name: string; heroPhotoId: string | null }[];
   photo: Photo;
   stages: Stage[];
   routes: RouteMap | null;
   crews: Crew[];
+  index: number;
+  total: number;
+  onPrev?: () => void;
+  onNext?: () => void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -59,12 +69,23 @@ export function PhotoEditor({
   const [focusPin, setFocusPin] = useState(0);
 
   const onCloseRef = useRef(onClose);
+  const onPrevRef = useRef(onPrev);
+  const onNextRef = useRef(onNext);
   useEffect(() => {
     onCloseRef.current = onClose;
-  }, [onClose]);
+    onPrevRef.current = onPrev;
+    onNextRef.current = onNext;
+  }, [onClose, onPrev, onNext]);
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") onCloseRef.current();
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) return;
+      event.preventDefault();
+      if (event.key === "ArrowLeft") onPrevRef.current?.();
+      else onNextRef.current?.();
     }
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -106,9 +127,34 @@ export function PhotoEditor({
             unoptimized
             className="max-h-[42dvh] w-full object-contain md:max-h-[92dvh]"
           />
-          <button type="button" className={`${btnGhost} absolute top-3 right-3 bg-paper`} onClick={onClose}>
-            Zamknij
-          </button>
+          {total > 1 ? (
+            <>
+              <button
+                type="button"
+                aria-label="Poprzednie zdjęcie"
+                disabled={!onPrev}
+                className={`${btnGhost} absolute top-1/2 left-3 -translate-y-1/2 bg-paper px-3 disabled:opacity-40`}
+                onClick={onPrev}
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                aria-label="Następne zdjęcie"
+                disabled={!onNext}
+                className={`${btnGhost} absolute top-1/2 right-3 -translate-y-1/2 bg-paper px-3 disabled:opacity-40`}
+                onClick={onNext}
+              >
+                →
+              </button>
+            </>
+          ) : null}
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            {total > 1 ? <span className="rounded-md bg-paper px-3 py-2 text-sm">{index + 1} / {total}</span> : null}
+            <button type="button" className={`${btnGhost} bg-paper`} onClick={onClose}>
+              Zamknij
+            </button>
+          </div>
         </div>
         <div className="space-y-4 p-4 md:max-h-[92dvh] md:overflow-y-auto">
           <ActionForm action={savePhoto.bind(null, galleryId, photo.id)} submit="Zapisz kadr">
@@ -148,17 +194,48 @@ export function PhotoEditor({
             <input type="hidden" name="latitude" value={latitude ?? ""} />
             <input type="hidden" name="longitude" value={longitude ?? ""} />
           </ActionForm>
-          <button
-            type="button"
-            className={heroPhotoId === photo.id ? btnGhost : btnPrimary}
-            onClick={() => {
-              const next = heroPhotoId === photo.id ? null : photo.id;
-              void setEventHero(galleryId, next).then(() => router.refresh());
-            }}
-          >
-            {heroPhotoId === photo.id ? "Zdejmij z hero" : "Ustaw jako hero"}
-          </button>
-          {photo.status !== "published" && heroPhotoId !== photo.id ? (
+          {total > 1 ? (
+            <div className="flex gap-2">
+              <button type="button" className={`${btnGhost} flex-1`} disabled={!onPrev} onClick={onPrev}>
+                Poprzednie
+              </button>
+              <button type="button" className={`${btnGhost} flex-1`} disabled={!onNext} onClick={onNext}>
+                Następne
+              </button>
+            </div>
+          ) : null}
+          {competitions.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted">Hero dla typu rajdu. Zdjęcia zmieniają się na stronie, a nazwa rajdu zostaje.</p>
+              {competitions.map((competition) => {
+                const active = competition.heroPhotoId === photo.id;
+                return (
+                  <button
+                    key={competition.id}
+                    type="button"
+                    className={`${active ? btnGhost : btnPrimary} w-full`}
+                    onClick={() => {
+                      void setCompetitionHero(galleryId, competition.id, active ? null : photo.id).then(() => router.refresh());
+                    }}
+                  >
+                    {active ? `Zdejmij · ${competition.name}` : `Hero · ${competition.name}`}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={heroPhotoId === photo.id ? btnGhost : btnPrimary}
+              onClick={() => {
+                const next = heroPhotoId === photo.id ? null : photo.id;
+                void setEventHero(galleryId, next).then(() => router.refresh());
+              }}
+            >
+              {heroPhotoId === photo.id ? "Zdejmij z hero" : "Ustaw jako hero"}
+            </button>
+          )}
+          {photo.status !== "published" ? (
             <p className="text-sm text-muted">Na stronie rajdu hero pojawi się dopiero po publikacji tego kadru.</p>
           ) : null}
           <div className="space-y-2">

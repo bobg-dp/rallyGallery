@@ -38,7 +38,7 @@ export async function EventView({
     query.author
       ? getDb().query.authors.findFirst({ where: eq(authors.slug, query.author) })
       : Promise.resolve(null),
-    showHero ? getEventHero(bundle.event.id) : Promise.resolve(null),
+    showHero ? getEventHero(bundle.event.id) : Promise.resolve([]),
     query.display === "map"
       ? getDb().select({ routeMap: events.routeMap }).from(events).where(eq(events.id, bundle.event.id)).limit(1)
       : Promise.resolve([]),
@@ -47,8 +47,16 @@ export async function EventView({
 
   return (
     <>
-      {hero ? <EventHero src={hero.src} alt={hero.alt} title={bundle.event.name} /> : null}
-      <PublicChrome bundle={bundle} query={activeQuery} formPath={formPath} showViews={showViews} authorLabel={author?.name} shuffle={mixAll}>
+      {hero.length ? <EventHero slides={hero} title={bundle.event.name} /> : null}
+      <PublicChrome
+        bundle={bundle}
+        query={activeQuery}
+        formPath={formPath}
+        showViews={showViews}
+        authorLabel={author?.name}
+        shuffle={mixAll}
+        hideTitle={hero.length > 0}
+      >
         {intro}
         {showCards && cards ? (
           <GalleryBoard eventSlug={eventSlug} query={query} featured={cards.featured} inne={cards.inne} />
