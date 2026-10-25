@@ -123,6 +123,92 @@ function facts(photo: PhotoCard) {
   return rows;
 }
 
+const thumbPageSize = 10;
+
+function ThumbStrip({ photos, index, onShow }: { photos: PhotoCard[]; index: number; onShow: (id: string) => void }) {
+  const photoPage = Math.floor(index / thumbPageSize);
+  const [page, setPage] = useState(photoPage);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const pages = Math.ceil(photos.length / thumbPageSize);
+  const start = page * thumbPageSize;
+  const visible = photos.slice(start, start + thumbPageSize);
+
+  useEffect(() => {
+    setPage(photoPage);
+  }, [photoPage]);
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    const active = strip?.querySelector<HTMLElement>("[data-current='true']");
+    if (!strip || !active) return;
+    const left = active.offsetLeft - strip.clientWidth / 2 + active.clientWidth / 2;
+    strip.scrollTo({ left, behavior: "smooth" });
+  }, [index, page]);
+
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center gap-2 px-3 py-3">
+      {pages > 1 ? (
+        <button
+          type="button"
+          aria-label="Poprzednie miniaturki"
+          disabled={page === 0}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-paper disabled:opacity-30"
+          onClick={() => setPage((current) => Math.max(0, current - 1))}
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+            <path d="M14 5L7 12l7 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
+          </svg>
+        </button>
+      ) : null}
+      <div ref={stripRef} className="flex max-w-full gap-2 overflow-x-auto">
+        {visible.map((item) => {
+          const current = item.id === photos[index]?.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              data-current={current ? "true" : undefined}
+              onClick={() => onShow(item.id)}
+              className={`shrink-0 ${current ? "ring-2 ring-accent" : "opacity-70"}`}
+            >
+              <Image src={item.thumbUrl} alt="" width={72} height={48} unoptimized className="h-12 w-auto object-cover" style={{ width: "auto", height: "3rem" }} />
+            </button>
+          );
+        })}
+      </div>
+      {pages > 1 ? (
+        <button
+          type="button"
+          aria-label="Następne miniaturki"
+          disabled={page >= pages - 1}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-paper disabled:opacity-30"
+          onClick={() => setPage((current) => Math.min(pages - 1, current + 1))}
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+            <path d="M10 5l7 7-7 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
+          </svg>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function PlayMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+      <path d="M8 5.5v13l11-6.5-11-6.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PauseMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+      <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
 function InfoMark({ open }: { open: boolean }) {
   if (open) {
     return (
@@ -266,7 +352,22 @@ function Lightbox({
   onFlightDone: () => void;
 }) {
   const index = Math.max(photos.findIndex((item) => item.id === photo.id), 0);
+  const [playing, setPlaying] = useState(false);
   const doneRef = useRef(onFlightDone);
+  const showRef = useRef(onShow);
+  useEffect(() => {
+    showRef.current = onShow;
+  });
+
+  useEffect(() => {
+    if (!playing || photos.length < 2 || flight.phase !== "open") return;
+    const timer = window.setInterval(() => {
+      const current = photos.findIndex((item) => item.id === photo.id);
+      if (current < 0) return;
+      showRef.current(photos[(current + 1) % photos.length].id);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [playing, photo.id, photos, flight.phase]);
   useEffect(() => {
     doneRef.current = onFlightDone;
   });
@@ -354,15 +455,20 @@ function Lightbox({
         <InfoPlate photo={photo} eventSlug={eventSlug} viewportWidth={viewport.w} />
       </div>
       {photos.length > 1 ? (
-        <div
-          className="absolute inset-x-0 bottom-0 z-20 flex gap-2 overflow-x-auto px-4 py-3"
+        <button
+          type="button"
+          aria-pressed={playing}
+          className="absolute bottom-[4.75rem] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm text-paper backdrop-blur-sm"
           style={{ opacity: flight.phase === "open" ? 1 : 0, pointerEvents: flight.phase === "open" ? "auto" : "none", transition: "opacity 240ms ease 180ms" }}
+          onClick={() => setPlaying((value) => !value)}
         >
-          {photos.map((item) => (
-            <button key={item.id} type="button" onClick={() => onShow(item.id)} className={item.id === photo.id ? "ring-2 ring-accent" : "opacity-70"}>
-              <Image src={item.thumbUrl} alt="" width={72} height={48} unoptimized className="h-12 w-auto object-cover" style={{ width: "auto", height: "3rem" }} />
-            </button>
-          ))}
+          {playing ? <PauseMark /> : <PlayMark />}
+          {playing ? "Zatrzymaj pokaz" : "Odtwarzaj pokaz"}
+        </button>
+      ) : null}
+      {photos.length > 1 ? (
+        <div style={{ opacity: flight.phase === "open" ? 1 : 0, pointerEvents: flight.phase === "open" ? "auto" : "none", transition: "opacity 240ms ease 180ms" }}>
+          <ThumbStrip photos={photos} index={index} onShow={onShow} />
         </div>
       ) : null}
     </div>

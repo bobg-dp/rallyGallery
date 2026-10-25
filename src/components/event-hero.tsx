@@ -89,8 +89,16 @@ export function EventHero({
         />
       </a>
       <div
-        className={`${antonSc.className} pointer-events-none absolute top-[20%] left-[10%] z-10 max-w-[min(70%,calc(90%-7.25rem))] text-white`}
+        className={`${antonSc.className} pointer-events-none absolute top-[max(4.75rem,calc(20%-8.5rem))] left-[10%] z-10 max-w-[min(70%,calc(90%-7.25rem))] text-white`}
       >
+        <Image
+          src="/brand/rajd-sniezki.png"
+          alt=""
+          width={176}
+          height={116}
+          priority
+          className="mb-3 h-16 w-auto rounded-md bg-white/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.28)] md:mb-5 md:h-28 md:p-2"
+        />
         <h1 className="m-0 text-6xl leading-none md:text-8xl">{title}</h1>
         {label ? (
           <p className="m-0 mt-5 text-3xl leading-none md:mt-16 md:text-5xl">
@@ -183,24 +191,10 @@ function photoWord(count: number) {
 }
 
 function PhotoCount({ count }: { count: number }) {
-  const digits = String(Math.max(0, count)).split("");
   return (
-    <span className="mb-1 flex flex-col items-center text-ink" aria-hidden>
-      {digits.map((digit, index) => (
-        <span
-          key={`${digit}-${index}`}
-          className={`${antonSc.className} text-[1.7rem] leading-none`}
-        >
-          {digit}
-        </span>
-      ))}
-      <span className="mt-2 flex flex-col items-center text-[13px] leading-none">
-        {"Zdjęć".split("").map((letter, index) => (
-          <span key={`${letter}-${index}`} className="leading-[1.15]">
-            {letter}
-          </span>
-        ))}
-      </span>
+    <span className="mb-12 flex w-full flex-col items-center text-center text-ink" aria-hidden>
+      <span className={`${antonSc.className} text-[1.7rem] leading-none`}>{Math.max(0, count)}</span>
+      <span className="mt-1 text-[15.6px] leading-none">Zdjęć</span>
     </span>
   );
 }

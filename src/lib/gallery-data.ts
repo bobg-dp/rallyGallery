@@ -355,22 +355,6 @@ function mixPhotos(photos: PhotoCard[]) {
     items[i] = items[j];
     items[j] = current;
   }
-  const galleries = new Set(items.map((photo) => photo.gallerySlug));
-  if (galleries.size < 2) return items;
-  for (let i = 1; i < items.length; i += 1) {
-    if (items[i].gallerySlug !== items[i - 1].gallerySlug) continue;
-    let swap = -1;
-    for (let j = i + 1; j < items.length; j += 1) {
-      if (items[j].gallerySlug !== items[i].gallerySlug) {
-        swap = j;
-        break;
-      }
-    }
-    if (swap === -1) break;
-    const current = items[i];
-    items[i] = items[swap];
-    items[swap] = current;
-  }
   return items;
 }
 

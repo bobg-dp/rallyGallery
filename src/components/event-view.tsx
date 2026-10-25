@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { EventHero } from "@/components/event-hero";
 import { GalleryBoard } from "@/components/gallery-board";
@@ -35,11 +36,14 @@ export async function EventView({
 }) {
   const bundle = await getEventBundle(eventSlug);
   if (!bundle) notFound();
-  const mixAll = bundle.event.shufflePhotos && scope.type === "event";
+  const shuffle = bundle.event.shufflePhotos;
+  const mixAll = shuffle && scope.type === "event";
   const activeQuery = mixAll && query.view === "galleries" ? { ...query, view: "all" as const } : query;
   const showCards = showViews && activeQuery.view === "galleries";
+  const shuffleOrder = shuffle && activeQuery.view !== "latest";
+  if (shuffleOrder && !showCards) await connection();
   const [photos, cards, author, hero, routeRow, photoCount] = await Promise.all([
-    showCards ? Promise.resolve([]) : listPublishedPhotos(bundle.event.id, activeQuery, scope, mixAll && activeQuery.view === "all"),
+    showCards ? Promise.resolve([]) : listPublishedPhotos(bundle.event.id, activeQuery, scope, shuffleOrder),
     showCards ? listGalleryCards(bundle.event.id, bundle.event.galleryMinPhotos, query.competition) : Promise.resolve(null),
     query.author
       ? getDb().query.authors.findFirst({ where: eq(authors.slug, query.author) })
