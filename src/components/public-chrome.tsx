@@ -1,21 +1,14 @@
 import Link from "next/link";
 import type { getEventBundle } from "@/lib/gallery-data";
-import { spectatorsCrew, withQuery, type PublicQuery } from "@/lib/query";
+import { clearedFilters, spectatorsCrew, withQuery, type PublicQuery } from "@/lib/query";
 import { GallerySearchForm, RememberGalleryScroll } from "./gallery-place";
 import { inputClass } from "./styles";
 
 type Bundle = NonNullable<Awaited<ReturnType<typeof getEventBundle>>>;
 
-const views = [
-  { id: "all", label: "Wszystkie" },
-  { id: "latest", label: "Ostatnio dodane" },
-  { id: "galleries", label: "Galerie" },
-] as const;
-
 const displays = [
   { id: "grid", label: "Siatka" },
   { id: "map", label: "Mapa" },
-  { id: "timeline", label: "Oś czasu" },
 ] as const;
 
 export function PublicChrome({
@@ -37,8 +30,6 @@ export function PublicChrome({
   hideTitle?: boolean;
   children: React.ReactNode;
 }) {
-  const eventPath = `/${bundle.event.slug}`;
-  const visibleViews = shuffle ? views.filter((view) => view.id !== "galleries") : views;
   const classNames = [
     ...new Set(
       bundle.classes
@@ -58,7 +49,7 @@ export function PublicChrome({
   return (
     <div id="galeria">
       <RememberGalleryScroll />
-      <header className="border-b border-line">
+      <header className="relative z-10 border-b border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-4 px-4 py-6">
           {hideTitle ? null : (
             <div>
@@ -108,25 +99,17 @@ export function PublicChrome({
         ) : null}
       </header>
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-6">
-        {showViews ? (
-          <div className="flex flex-wrap gap-2">
-            {visibleViews.map((view) => (
-              <Link
-                key={view.id}
-                href={withQuery(eventPath, query, { view: view.id, photo: undefined })}
-                scroll={false}
-                prefetch={false}
-                className={`rounded-full px-4 py-2 text-sm ${query.view === view.id ? "bg-ink text-paper" : "bg-panel text-ink"}`}
-              >
-                {view.label}
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <Link href={withQuery(eventPath, query, { view: "all", photo: undefined })} scroll={false} prefetch={false} className="text-sm text-muted">
-            ← Wszystkie zdjęcia rajdu
+        <div className="relative z-10 space-y-5 rounded-xl border border-accent bg-white p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {showViews ? null : (
+            <Link href={withQuery(`/${bundle.event.slug}`, query, { view: "all", photo: undefined })} scroll={false} prefetch={false} className="text-sm text-muted">
+              ← Wszystkie zdjęcia rajdu
+            </Link>
+          )}
+          <Link href={clearedFilters(formPath, query)} scroll={false} prefetch={false} className="inline-flex rounded-full border border-accent px-4 py-2 text-sm text-accent">
+            Wyczyść filtry
           </Link>
-        )}
+        </div>
         <GallerySearchForm action={formPath}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {query.view !== "all" ? <input type="hidden" name="view" value={query.view} /> : null}
@@ -169,7 +152,6 @@ export function PublicChrome({
           </select>
           {query.view === "all" && !shuffle ? (
             <select className={inputClass} name="sort" defaultValue={query.sort}>
-              <option value="time">Czas wykonania</option>
               <option value="stage">Miejsce</option>
               <option value="crew">Numer załogi</option>
               <option value="author">Fotograf</option>
@@ -214,8 +196,6 @@ export function PublicChrome({
             ))}
           </div>
         ) : null}
-        <div aria-hidden className="pointer-events-none relative -mx-4 h-28 overflow-hidden sm:h-36">
-          <img src="/brand/gallery-mountains.svg?v=3" alt="" className="absolute inset-x-0 bottom-0 h-full w-full object-cover object-center" />
         </div>
         {children}
       </div>

@@ -18,7 +18,7 @@ export async function POST(request: Request, context: { params: Promise<{ galler
   const filename = body?.filename ?? "";
   const byteSize = Number(body?.byteSize ?? 0);
   const ext = originalExtFromName(filename);
-  if (!ext) return Response.json({ error: "Tylko pliki JPEG i WebP." }, { status: 400 });
+  if (!ext) return Response.json({ error: "Tylko pliki JPEG, PNG i WebP." }, { status: 400 });
   if (!Number.isFinite(byteSize) || byteSize < 1 || byteSize > 40 * 1024 * 1024) {
     return Response.json({ error: "Plik jest większy niż 40 MB." }, { status: 400 });
   }

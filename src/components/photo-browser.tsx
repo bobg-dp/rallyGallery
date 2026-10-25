@@ -7,12 +7,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PhotoCard } from "@/lib/gallery-data";
 import type { RouteMap } from "@/lib/route-map";
 import { spectatorsCrew, withQuery, type PublicQuery } from "@/lib/query";
-import { buildTimeline } from "@/lib/timeline";
 import { formatWarsaw } from "@/lib/time";
 
 const PhotoMap = dynamic(() => import("./photo-map").then((mod) => mod.PhotoMap), { ssr: false });
 
-const emptyQuery: PublicQuery = { view: "all", display: "grid", sort: "time" };
+const emptyQuery: PublicQuery = { view: "all", display: "grid", sort: "stage" };
 let closeInfo: (() => void) | null = null;
 let closePace: (() => void) | null = null;
 
@@ -637,18 +636,31 @@ function Lightbox({
   );
 }
 
+function EmptyPhotos({ clearHref }: { clearHref: string }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="text-muted">Brak zdjęć w tym zestawie. Sprawdź, czy filtry są dobrze dobrane.</p>
+      <Link href={clearHref} scroll={false} prefetch={false} className="inline-flex rounded-full border border-accent px-4 py-2 text-sm text-accent">
+        Wyczyść filtry
+      </Link>
+    </div>
+  );
+}
+
 export function PhotoBrowser({
   photos,
   display,
   initialPhotoId,
   eventSlug,
   routes = null,
+  clearHref,
 }: {
   photos: PhotoCard[];
   display: PublicQuery["display"];
   initialPhotoId?: string;
   eventSlug: string;
   routes?: RouteMap | null;
+  clearHref: string;
 }) {
   const [openId, setOpenId] = useState(initialPhotoId ?? null);
   const [flight, setFlight] = useState<Flight | null>(null);
@@ -778,8 +790,6 @@ export function PhotoBrowser({
   }, [photos, width]);
 
   const placed = photos.filter((photo) => photo.latitude != null && photo.longitude != null).length;
-  const timed = photos.filter((photo) => photo.capturedAt).length;
-  const timeline = useMemo(() => buildTimeline(photos), [photos]);
 
   return (
     <div>
@@ -790,6 +800,7 @@ export function PhotoBrowser({
               {photos.length - placed} {photos.length - placed === 1 ? "zdjęcie" : "zdjęć"} bez pinezki zostaje poza mapą.
             </p>
           ) : null}
+          {photos.length === 0 ? <EmptyPhotos clearHref={clearHref} /> : null}
           {routes && routes.features.length > 0 ? (
             <p className="text-sm text-muted">Na mapie jest trasa zapisana z mapy organizatora.</p>
           ) : null}
@@ -797,52 +808,9 @@ export function PhotoBrowser({
         </div>
       ) : null}
 
-      {display === "timeline" ? (
-        <div className="space-y-8">
-          {timeline.untimed > 0 ? (
-            <p className="text-sm text-muted">
-              {timeline.untimed} {timeline.untimed === 1 ? "zdjęcie" : "zdjęć"} bez czasu zostaje poza osią.
-            </p>
-          ) : null}
-          {timeline.days.map((day) => (
-            <section key={day.key} className="space-y-4">
-              <h3 className="font-display text-2xl capitalize">{day.label}</h3>
-              {day.stages.map((stage) => (
-                <div key={stage.key} className="space-y-2">
-                  <p className="text-sm text-muted">{stage.label}</p>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {stage.photos.map((photo) => (
-                      <button
-                        key={photo.id}
-                        type="button"
-                        ref={(node) => remember(photo.id, node)}
-                        onClick={(event) => show(photo.id, event.currentTarget)}
-                        className="shrink-0 transition-opacity duration-200"
-                        style={{ opacity: openId === photo.id && flight && viewport.w > 0 ? 0 : 1 }}
-                      >
-                        <Image
-                          src={photo.thumbUrl}
-                          alt={photo.caption || photo.authorName}
-                          width={180}
-                          height={120}
-                          unoptimized
-                          className="h-28 w-auto rounded-md object-cover"
-                          style={{ width: "auto", height: "7rem" }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </section>
-          ))}
-          {timed === 0 ? <p className="text-muted">W tym zestawie nie ma zdjęć z czasem wykonania.</p> : null}
-        </div>
-      ) : null}
-
       {display === "grid" ? (
         <div ref={frame} className="space-y-2">
-          {photos.length === 0 ? <p className="text-muted">W tym zestawie nie ma jeszcze zdjęć.</p> : null}
+          {photos.length === 0 ? <EmptyPhotos clearHref={clearHref} /> : null}
           {rows.map((row, index) => (
             <div key={index} className="flex gap-2">
               {row.photos.map((photo) => (

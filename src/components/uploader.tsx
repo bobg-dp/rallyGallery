@@ -6,6 +6,23 @@ import { btnGhost } from "./styles";
 
 type Item = { id: string; name: string; status: string };
 
+function isPhotoFile(file: File) {
+  return (
+    file.type === "image/jpeg" ||
+    file.type === "image/png" ||
+    file.type === "image/webp" ||
+    /\.jpe?g$/i.test(file.name) ||
+    /\.png$/i.test(file.name) ||
+    /\.webp$/i.test(file.name)
+  );
+}
+
+function contentType(file: File) {
+  if (file.type === "image/png" || /\.png$/i.test(file.name)) return "image/png";
+  if (file.type === "image/webp" || /\.webp$/i.test(file.name)) return "image/webp";
+  return "image/jpeg";
+}
+
 export function Uploader({ galleryId }: { galleryId: string }) {
   const router = useRouter();
   const [items, setItems] = useState<Item[]>([]);
@@ -29,7 +46,7 @@ export function Uploader({ galleryId }: { galleryId: string }) {
     const put = await fetch(payload.uploadUrl, {
       method: "PUT",
       body: file,
-      headers: { "content-type": file.type === "image/webp" || /\.webp$/i.test(file.name) ? "image/webp" : "image/jpeg" },
+      headers: { "content-type": contentType(file) },
     });
     if (!put.ok) throw new Error("Nie udało się wysłać pliku.");
     mark(id, "Obrabiam");
@@ -45,9 +62,9 @@ export function Uploader({ galleryId }: { galleryId: string }) {
 
   async function onFiles(list: FileList | null) {
     const picked = [...(list ?? [])];
-    const files = picked.filter((file) => file.type === "image/jpeg" || file.type === "image/webp" || /\.jpe?g$/i.test(file.name) || /\.webp$/i.test(file.name));
+    const files = picked.filter((file) => isPhotoFile(file));
     if (!files.length) {
-      if (picked.length) setItems([{ id: crypto.randomUUID(), name: picked[0].name, status: "Tylko JPEG albo WebP." }]);
+      if (picked.length) setItems([{ id: crypto.randomUUID(), name: picked[0].name, status: "Tylko JPEG, PNG albo WebP." }]);
       return;
     }
     const next = files.map((file) => ({ id: crypto.randomUUID(), name: file.name, status: "W kolejce" }));
@@ -74,14 +91,14 @@ export function Uploader({ galleryId }: { galleryId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl">Zdjęcia</h2>
-          <p className="text-sm text-muted">JPEG albo WebP, pojedynczo albo serią. Autor tej paczki jest już zapisany.</p>
+          <p className="text-sm text-muted">JPEG, PNG albo WebP, pojedynczo albo serią. Autor tej paczki jest już zapisany.</p>
         </div>
         <label className={btnGhost}>
           Wybierz pliki
           <input
             className="sr-only"
             type="file"
-            accept="image/jpeg,.jpg,.jpeg,image/webp,.webp"
+            accept="image/jpeg,.jpg,.jpeg,image/png,.png,image/webp,.webp"
             multiple
             disabled={busy}
             onChange={(event) => {

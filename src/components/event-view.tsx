@@ -9,7 +9,12 @@ import { getDb } from "@/db";
 import { authors, events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { asRouteMap } from "@/lib/route-map";
-import type { PublicQuery } from "@/lib/query";
+import { clearedFilters, type PublicQuery } from "@/lib/query";
+
+function withoutYear(name: string) {
+  const next = name.replace(/\b(?:19|20)\d{2}\b/g, " ").replace(/\s+/g, " ").trim();
+  return next || name;
+}
 
 const sniezkaSocials = [
   { href: "https://www.facebook.com/people/Rally-Karkonosze/61584651251742/", label: "Facebook" },
@@ -61,7 +66,7 @@ export async function EventView({
       {hero.length ? (
         <EventHero
           slides={hero}
-          title={bundle.event.name}
+          title={withoutYear(bundle.event.name)}
           photoCount={photoCount}
           socials={bundle.event.slug === "rajd-sniezki-2026" ? sniezkaSocials : []}
         />
@@ -79,7 +84,7 @@ export async function EventView({
         {showCards && cards ? (
           <GalleryBoard eventSlug={eventSlug} query={query} featured={cards.featured} inne={cards.inne} />
         ) : (
-          <PhotoBrowser photos={photos} display={query.display} initialPhotoId={query.photo} eventSlug={eventSlug} routes={routes} />
+          <PhotoBrowser photos={photos} display={query.display} initialPhotoId={query.photo} eventSlug={eventSlug} routes={routes} clearHref={clearedFilters(formPath, activeQuery)} />
         )}
       </PublicChrome>
     </>

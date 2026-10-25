@@ -2,8 +2,8 @@ export const spectatorsCrew = "kibice";
 
 export type PublicQuery = {
   view: "all" | "latest" | "galleries";
-  display: "grid" | "map" | "timeline";
-  sort: "time" | "stage" | "crew" | "author";
+  display: "grid" | "map";
+  sort: "stage" | "crew" | "author";
   stage?: string;
   q?: string;
   className?: string;
@@ -24,8 +24,8 @@ export function parsePublicQuery(searchParams: Record<string, string | string[] 
   const sort = one("sort");
   return {
     view: view === "latest" || view === "galleries" ? view : "all",
-    display: display === "map" || display === "timeline" ? display : "grid",
-    sort: sort === "stage" || sort === "crew" || sort === "author" ? sort : "time",
+    display: display === "map" ? display : "grid",
+    sort: sort === "crew" || sort === "author" ? sort : "stage",
     stage: one("stage"),
     q: one("q"),
     className: one("klasa"),
@@ -42,7 +42,7 @@ export function withQuery(path: string, query: PublicQuery, patch: Partial<Publi
   const params = new URLSearchParams();
   if (next.view !== "all") params.set("view", next.view);
   if (next.display !== "grid") params.set("display", next.display);
-  if (next.sort !== "time") params.set("sort", next.sort);
+  if (next.sort !== "stage") params.set("sort", next.sort);
   if (next.stage) params.set("stage", next.stage);
   if (next.q) params.set("q", next.q);
   if (next.className) params.set("klasa", next.className);
@@ -53,4 +53,18 @@ export function withQuery(path: string, query: PublicQuery, patch: Partial<Publi
   if (next.photo) params.set("photo", next.photo);
   const serialized = params.toString();
   return serialized ? `${path}?${serialized}` : path;
+}
+
+export function clearedFilters(path: string, query: PublicQuery) {
+  return withQuery(path, query, {
+    q: undefined,
+    crew: undefined,
+    stage: undefined,
+    className: undefined,
+    car: undefined,
+    author: undefined,
+    competition: undefined,
+    photo: undefined,
+    sort: "stage",
+  });
 }

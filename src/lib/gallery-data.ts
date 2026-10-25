@@ -129,6 +129,12 @@ export async function getHomeEvent() {
   return event ?? null;
 }
 
+export function publicEventTitle(event: { slug: string; name: string } | null | undefined) {
+  if (!event) return "Galeria rajdowa";
+  if (event.slug === "rajd-sniezki-2026") return "Rajd Śnieżki 2026 | Największa galeria zdjęć";
+  return event.name;
+}
+
 export async function getEventBundle(slug: string) {
   const event = await getDb().query.events.findFirst({
     where: eq(events.slug, slug),
@@ -257,13 +263,11 @@ export async function listPublishedPhotos(eventId: string, query: PublicQuery, s
   const order =
     query.view === "latest" && scope.type === "event"
       ? [desc(photos.publishedAt)]
-      : query.sort === "stage"
-        ? [sql`${stages.position} asc nulls last`, captured, asc(photos.createdAt)]
-        : query.sort === "crew"
-          ? [...startNumberOrder(primaryNumber), captured]
-          : query.sort === "author"
-            ? [asc(authors.name), captured]
-            : [captured, asc(photos.createdAt)];
+      : query.sort === "crew"
+        ? [...startNumberOrder(primaryNumber), captured]
+        : query.sort === "author"
+          ? [asc(authors.name), captured]
+          : [sql`${stages.position} asc nulls last`, captured, asc(photos.createdAt)];
 
   const rows = await getDb()
     .select({

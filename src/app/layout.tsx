@@ -15,7 +15,7 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: "Galeria rajdowa",
-  description: "Zdjęcia z rajdu: załogi, miejsca, mapa i oś czasu.",
+  description: "Zdjęcia z rajdu: załogi, miejsca i mapa.",
 };
 
 export const dynamic = "force-dynamic";

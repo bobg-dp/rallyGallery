@@ -1,11 +1,11 @@
 "use client";
 
-import { Anton_SC } from "next/font/google";
+import { Saira_Condensed } from "next/font/google";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
-const antonSc = Anton_SC({
-  weight: "400",
+const saira = Saira_Condensed({
+  weight: ["400", "900"],
   subsets: ["latin", "latin-ext"],
 });
 
@@ -59,7 +59,13 @@ export function EventHero({
   }, [signature, slides.length]);
 
   return (
-    <section className="relative h-dvh w-full overflow-hidden">
+    <section
+      className="relative h-dvh w-full cursor-pointer overflow-hidden"
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest("a")) return;
+        scrollToGallery();
+      }}
+    >
       {slides.map((slide, slideIndex) => (
         <Image
           key={`${slide.label ?? "hero"}-${slide.src}`}
@@ -75,7 +81,7 @@ export function EventHero({
       ))}
       <a
         href="https://rallydevil.com"
-        className="absolute top-5 left-5 z-10 flex max-w-[calc(100%-8.5rem)] items-center gap-2 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
+        className="absolute bottom-5 right-[116px] z-10 flex items-center gap-2 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
       >
         <span className="text-[11px] tracking-[0.16em] uppercase">
           powered by
@@ -89,7 +95,7 @@ export function EventHero({
         />
       </a>
       <div
-        className={`${antonSc.className} pointer-events-none absolute top-[max(4.75rem,calc(20%-8.5rem))] left-[10%] z-10 max-w-[min(70%,calc(90%-7.25rem))] text-white`}
+        className={`${saira.className} pointer-events-none absolute top-[max(4.75rem,calc(20%-8.5rem))] left-[10%] z-10 max-w-[min(70%,calc(90%-7.25rem))] text-white`}
       >
         <a
           href="https://rajdsniezki.pl"
@@ -109,21 +115,28 @@ export function EventHero({
             Karkonosze
           </span>
         </a>
-        <Image
-          src="/brand/rajd-sniezki.png"
-          alt=""
-          width={176}
-          height={116}
-          priority
-          className="mb-3 h-16 w-auto rounded-md bg-white/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.28)] md:mb-5 md:h-28 md:p-2"
-        />
-        <h1 className="m-0 text-6xl leading-none md:text-8xl">{title}</h1>
+        <div className="lg:flex lg:items-center lg:gap-6">
+          <Image
+            src="/brand/rajd-sniezki.png"
+            alt=""
+            width={176}
+            height={116}
+            priority
+            className="mb-3 h-16 w-auto shrink-0 rounded-md bg-white/95 p-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.28)] md:h-28 md:p-2 lg:mb-0"
+          />
+          <h1 className="m-0 text-6xl font-black uppercase leading-[0.84] tracking-[-0.01em] italic md:text-8xl lg:text-[8.5rem]">
+            {paintSniezka(title)}
+          </h1>
+        </div>
         {label ? (
-          <p className="m-0 mt-5 text-3xl leading-none md:mt-16 md:text-5xl">
+          <p className="m-0 mt-4 text-3xl font-black uppercase leading-[0.84] tracking-[-0.01em] italic md:mt-8 md:text-5xl">
             {label}
           </p>
         ) : null}
       </div>
+      <p className="gallery-hint pointer-events-none absolute bottom-20 left-[10%] right-[7.5rem] z-10 text-center text-sm font-medium tracking-wide text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] md:bottom-8 md:text-base">
+        Kliknij, aby zobaczyć galerię
+      </p>
       {socials.length ? (
         <ul className="absolute bottom-6 left-[10%] z-10 flex gap-3">
           {socials.map((social) => (
@@ -145,13 +158,7 @@ export function EventHero({
         href="#galeria"
         aria-label={`Przewiń do galerii, ${photoCount} ${photoWord(photoCount)}`}
         className="absolute inset-y-0 right-0 z-20 grid w-[100px] grid-cols-1 grid-rows-[1fr_auto_auto_1fr] bg-white"
-        onClick={(event) => {
-          const gallery = document.getElementById("galeria");
-          if (!gallery) return;
-          event.preventDefault();
-          const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-          gallery.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
-        }}
+        onClick={(event) => scrollToGallery(event)}
       >
         <span
           aria-hidden
@@ -206,6 +213,28 @@ export function EventHero({
   );
 }
 
+function paintSniezka(text: string) {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word, index) => (
+      <span
+        key={index}
+        className={` ${word.toLocaleLowerCase("pl") === "śnieżki" ? "text-accent" : ""}`}
+      >
+        {word}{" "}
+      </span>
+    ));
+}
+
+function scrollToGallery(event?: { preventDefault: () => void }) {
+  const gallery = document.getElementById("galeria");
+  if (!gallery) return;
+  event?.preventDefault();
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  gallery.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+}
+
 function photoWord(count: number) {
   const tens = Math.abs(count) % 100;
   const ones = tens % 10;
@@ -217,8 +246,16 @@ function photoWord(count: number) {
 
 function PhotoCount({ count }: { count: number }) {
   return (
-    <span className="mb-12 flex w-full flex-col items-center text-center text-ink" aria-hidden>
-      <span className={`${antonSc.className} text-[1.7rem] leading-none`}>{Math.max(0, count)}</span>
+    <span
+      className="mb-12 flex w-full flex-col items-center text-center text-ink"
+      aria-hidden
+    >
+      <span
+        className={`${saira.className} text-[1.7rem] leading-none`}
+        style={{ fontStyle: "italic", fontWeight: 400 }}
+      >
+        {Math.max(0, count)}
+      </span>
       <span className="mt-1 text-[15.6px] leading-none">Zdjęć</span>
     </span>
   );

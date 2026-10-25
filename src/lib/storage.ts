@@ -10,18 +10,21 @@ import path from "node:path";
 import { signUpload } from "./upload-token";
 
 const KEY_PATTERN =
-  /^(originals\/[0-9a-f-]{36}\.(?:jpg|webp)|derivatives\/[0-9a-f-]{36}\/(thumb|grid|view)\.webp)$/;
+  /^(originals\/[0-9a-f-]{36}\.(?:jpg|png|webp)|derivatives\/[0-9a-f-]{36}\/(thumb|grid|view)\.webp)$/;
 
-export type OriginalExt = "jpg" | "webp";
+export type OriginalExt = "jpg" | "png" | "webp";
 
 export function originalExtFromName(filename: string): OriginalExt | null {
   if (/\.webp$/i.test(filename)) return "webp";
+  if (/\.png$/i.test(filename)) return "png";
   if (/\.jpe?g$/i.test(filename)) return "jpg";
   return null;
 }
 
 export function originalContentType(ext: OriginalExt) {
-  return ext === "webp" ? "image/webp" : "image/jpeg";
+  if (ext === "webp") return "image/webp";
+  if (ext === "png") return "image/png";
+  return "image/jpeg";
 }
 
 export function originalObjectKey(photoId: string, ext: OriginalExt) {

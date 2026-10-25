@@ -75,7 +75,7 @@ export async function POST(
 }
 
 async function readUploadedOriginal(photoId: string) {
-  const exts: OriginalExt[] = ["jpg", "webp"];
+  const exts: OriginalExt[] = ["jpg", "png", "webp"];
   for (const ext of exts) {
     const key = originalObjectKey(photoId, ext);
     try {

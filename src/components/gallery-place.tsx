@@ -50,7 +50,7 @@ export function GallerySearchForm({ action, children }: { action: string; childr
           if (typeof value !== "string") continue;
           const trimmed = value.trim();
           if (!trimmed) continue;
-          if (key === "sort" && trimmed === "time") continue;
+          if (key === "sort" && trimmed === "stage") continue;
           if (key === "view" && trimmed === "all") continue;
           if (key === "display" && trimmed === "grid") continue;
           params.set(key, trimmed);

@@ -27,7 +27,7 @@ body {
 
 #galeria {
   background-color: #fff;
-  background-image: url("/brand/gallery-mountains.svg?v=3"), linear-gradient(#f76003, #f76003);
+  background-image: url("/brand/gallery-mountains.svg?v=5"), linear-gradient(#f76003, #f76003);
   background-repeat: no-repeat;
   background-position: center bottom, top;
   background-size: 100% auto, 100% 3px;
@@ -37,4 +37,25 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@keyframes gallery-hint {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.gallery-hint {
+  animation: gallery-hint 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-hint {
+    animation: none;
+    opacity: 1;
+  }
 }
