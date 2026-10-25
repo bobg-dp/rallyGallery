@@ -181,21 +181,43 @@ export function PublicChrome({
             </Link>
           ) : null}
         </div>
-        {query.view !== "galleries" ? (
-          <div className="flex gap-2 text-sm">
-            {displays.map((item) => (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          {showViews ? (
+            <div className="flex gap-4">
               <Link
-                key={item.id}
-                href={withQuery(formPath, query, { display: item.id, photo: undefined })}
+                href={withQuery(formPath, query, { view: "all", photo: undefined })}
                 scroll={false}
                 prefetch={false}
-                className={query.display === item.id ? "text-accent" : "text-muted"}
+                className={query.view === "galleries" ? "text-muted" : "text-accent"}
               >
-                {item.label}
+                Zdjęcia
               </Link>
-            ))}
-          </div>
-        ) : null}
+              <Link
+                href={withQuery(formPath, query, { view: "galleries", photo: undefined })}
+                scroll={false}
+                prefetch={false}
+                className={query.view === "galleries" ? "text-accent" : "text-muted"}
+              >
+                Galerie
+              </Link>
+            </div>
+          ) : null}
+          {query.view !== "galleries" ? (
+            <div className="flex gap-4">
+              {displays.map((item) => (
+                <Link
+                  key={item.id}
+                  href={withQuery(formPath, query, { display: item.id, photo: undefined })}
+                  scroll={false}
+                  prefetch={false}
+                  className={query.display === item.id ? "text-accent" : "text-muted"}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
         </div>
         {children}
       </div>

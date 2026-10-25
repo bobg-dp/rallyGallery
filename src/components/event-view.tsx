@@ -43,7 +43,7 @@ export async function EventView({
   if (!bundle) notFound();
   const shuffle = bundle.event.shufflePhotos;
   const mixAll = shuffle && scope.type === "event";
-  const activeQuery = mixAll && query.view === "galleries" ? { ...query, view: "all" as const } : query;
+  const activeQuery = query;
   const showCards = showViews && activeQuery.view === "galleries";
   const shuffleOrder = shuffle && activeQuery.view !== "latest";
   if (shuffleOrder && !showCards) await connection();
