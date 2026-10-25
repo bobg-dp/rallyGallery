@@ -2,6 +2,7 @@ import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { getDb } from "@/db";
 import { authors, cars, competitions, crewEntries, events, galleries, people, photoCrews, photos, series, stages } from "@/db/schema";
+import { shareImage } from "./share-image";
 import { derivativeUrl } from "./storage";
 import { spectatorsCrew, type PublicQuery } from "./query";
 import { startNumberOrder } from "./start-number";
@@ -133,6 +134,15 @@ export function publicEventTitle(event: { slug: string; name: string } | null | 
   if (!event) return "Galeria rajdowa";
   if (event.slug === "rajd-sniezki-2026") return "Rajd Śnieżki 2026 | Największa galeria zdjęć";
   return event.name;
+}
+
+export function publicPageMeta(event: { slug: string; name: string } | null | undefined) {
+  const title = publicEventTitle(event);
+  return {
+    title,
+    openGraph: { title, images: [shareImage] },
+    twitter: { card: "summary_large_image" as const, title, images: [shareImage.url] },
+  };
 }
 
 export async function getEventBundle(slug: string) {

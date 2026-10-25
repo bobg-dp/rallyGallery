@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Fraunces, Outfit } from "next/font/google";
+import { shareImage } from "@/lib/share-image";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -14,8 +15,20 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://rajdsniezki.rallydevil.com"),
   title: "Galeria rajdowa",
   description: "Zdjęcia z rajdu: załogi, miejsca i mapa.",
+  openGraph: {
+    title: "Rajd Śnieżki 2026 | Największa galeria zdjęć",
+    description: "Największa galeria zdjęć z rajdu.",
+    locale: "pl_PL",
+    type: "website",
+    images: [shareImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: [shareImage],
+  },
 };
 
 export const dynamic = "force-dynamic";

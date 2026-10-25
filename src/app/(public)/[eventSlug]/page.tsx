@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { EventView } from "@/components/event-view";
-import { getEventBundle, publicEventTitle } from "@/lib/gallery-data";
+import { getEventBundle, publicPageMeta } from "@/lib/gallery-data";
 import { parsePublicQuery } from "@/lib/query";
 
 export async function generateMetadata({ params }: { params: Promise<{ eventSlug: string }> }): Promise<Metadata> {
   const { eventSlug } = await params;
   const bundle = await getEventBundle(eventSlug);
-  return { title: publicEventTitle(bundle?.event) };
+  return publicPageMeta(bundle?.event);
 }
 
 async function Screen({
