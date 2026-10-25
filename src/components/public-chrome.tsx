@@ -55,7 +55,7 @@ export function PublicChrome({
   const activeCar = bundle.cars.find((row) => row.slug === query.car)?.name;
   const crews = bundle.crews.filter((row) => !query.competition || row.competitionSlug === query.competition);
   return (
-    <div>
+    <div id="galeria">
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-4 px-4 py-6">
           {hideTitle ? null : (

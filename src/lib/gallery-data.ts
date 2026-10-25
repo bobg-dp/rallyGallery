@@ -58,14 +58,25 @@ export type GalleryCard = {
 
 export type EventHeroSlide = {
   src: string;
+  thumb: string;
   alt: string;
   label: string | null;
 };
+
+export async function countPublishedPhotos(eventId: string) {
+  const [row] = await getDb()
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(photos)
+    .innerJoin(galleries, eq(photos.galleryId, galleries.id))
+    .where(and(eq(galleries.eventId, eventId), eq(photos.status, "published")));
+  return row?.count ?? 0;
+}
 
 export async function getEventHero(eventId: string): Promise<EventHeroSlide[]> {
   const typed = await getDb()
     .select({
       viewKey: photos.viewKey,
+      thumbKey: photos.thumbKey,
       caption: photos.caption,
       authorName: authors.name,
       competitionName: competitions.name,
@@ -79,6 +90,7 @@ export async function getEventHero(eventId: string): Promise<EventHeroSlide[]> {
   if (typed.length) {
     return typed.map((row) => ({
       src: derivativeUrl(row.viewKey),
+      thumb: derivativeUrl(row.thumbKey),
       alt: row.caption || `Zdjęcie: ${row.authorName}`,
       label: row.competitionName,
     }));
@@ -87,6 +99,7 @@ export async function getEventHero(eventId: string): Promise<EventHeroSlide[]> {
   const [row] = await getDb()
     .select({
       viewKey: photos.viewKey,
+      thumbKey: photos.thumbKey,
       caption: photos.caption,
       authorName: authors.name,
     })
@@ -100,6 +113,7 @@ export async function getEventHero(eventId: string): Promise<EventHeroSlide[]> {
   return [
     {
       src: derivativeUrl(row.viewKey),
+      thumb: derivativeUrl(row.thumbKey),
       alt: row.caption || `Zdjęcie: ${row.authorName}`,
       label: null,
     },

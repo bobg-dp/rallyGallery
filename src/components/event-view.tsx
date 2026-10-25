@@ -3,12 +3,18 @@ import { EventHero } from "@/components/event-hero";
 import { GalleryBoard } from "@/components/gallery-board";
 import { PhotoBrowser } from "@/components/photo-browser";
 import { PublicChrome } from "@/components/public-chrome";
-import { getEventBundle, getEventHero, listGalleryCards, listPublishedPhotos, type PhotoScope } from "@/lib/gallery-data";
+import { countPublishedPhotos, getEventBundle, getEventHero, listGalleryCards, listPublishedPhotos, type PhotoScope } from "@/lib/gallery-data";
 import { getDb } from "@/db";
 import { authors, events } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { asRouteMap } from "@/lib/route-map";
 import type { PublicQuery } from "@/lib/query";
+
+const sniezkaSocials = [
+  { href: "https://www.facebook.com/people/Rally-Karkonosze/61584651251742/", label: "Facebook" },
+  { href: "https://www.instagram.com/amg_rally_karkonosze", label: "Instagram" },
+  { href: "https://www.youtube.com/@automobilklubkarkonosze", label: "YouTube" },
+];
 
 export async function EventView({
   eventSlug,
@@ -32,7 +38,7 @@ export async function EventView({
   const mixAll = bundle.event.shufflePhotos && scope.type === "event";
   const activeQuery = mixAll && query.view === "galleries" ? { ...query, view: "all" as const } : query;
   const showCards = showViews && activeQuery.view === "galleries";
-  const [photos, cards, author, hero, routeRow] = await Promise.all([
+  const [photos, cards, author, hero, routeRow, photoCount] = await Promise.all([
     showCards ? Promise.resolve([]) : listPublishedPhotos(bundle.event.id, activeQuery, scope, mixAll && activeQuery.view === "all"),
     showCards ? listGalleryCards(bundle.event.id, bundle.event.galleryMinPhotos, query.competition) : Promise.resolve(null),
     query.author
@@ -42,12 +48,20 @@ export async function EventView({
     query.display === "map"
       ? getDb().select({ routeMap: events.routeMap }).from(events).where(eq(events.id, bundle.event.id)).limit(1)
       : Promise.resolve([]),
+    showHero ? countPublishedPhotos(bundle.event.id) : Promise.resolve(0),
   ]);
   const routes = asRouteMap(routeRow[0]?.routeMap);
 
   return (
     <>
-      {hero.length ? <EventHero slides={hero} title={bundle.event.name} /> : null}
+      {hero.length ? (
+        <EventHero
+          slides={hero}
+          title={bundle.event.name}
+          photoCount={photoCount}
+          socials={bundle.event.slug === "rajd-sniezki-2026" ? sniezkaSocials : []}
+        />
+      ) : null}
       <PublicChrome
         bundle={bundle}
         query={activeQuery}
