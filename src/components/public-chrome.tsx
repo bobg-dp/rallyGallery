@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { getEventBundle } from "@/lib/gallery-data";
 import { spectatorsCrew, withQuery, type PublicQuery } from "@/lib/query";
+import { GallerySearchForm, RememberGalleryScroll } from "./gallery-place";
 import { inputClass } from "./styles";
 
 type Bundle = NonNullable<Awaited<ReturnType<typeof getEventBundle>>>;
@@ -56,6 +57,7 @@ export function PublicChrome({
   const crews = bundle.crews.filter((row) => !query.competition || row.competitionSlug === query.competition);
   return (
     <div id="galeria">
+      <RememberGalleryScroll />
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-4 px-4 py-6">
           {hideTitle ? null : (
@@ -85,6 +87,8 @@ export function PublicChrome({
           <nav className="mx-auto flex max-w-6xl gap-2 overflow-x-auto px-4 pb-4 text-sm">
             <Link
               href={withQuery(formPath, query, { competition: undefined, className: undefined, car: undefined, photo: undefined })}
+              scroll={false}
+              prefetch={false}
               className={`rounded-full px-3 py-1 ${query.competition ? "text-muted" : "bg-ink text-paper"}`}
             >
               Cała impreza
@@ -93,6 +97,8 @@ export function PublicChrome({
               <Link
                 key={competition.slug}
                 href={withQuery(formPath, query, { competition: competition.slug, className: undefined, car: undefined, photo: undefined })}
+                scroll={false}
+                prefetch={false}
                 className={`rounded-full px-3 py-1 ${query.competition === competition.slug ? "bg-ink text-paper" : "text-muted"}`}
               >
                 {competition.name}
@@ -108,6 +114,8 @@ export function PublicChrome({
               <Link
                 key={view.id}
                 href={withQuery(eventPath, query, { view: view.id, photo: undefined })}
+                scroll={false}
+                prefetch={false}
                 className={`rounded-full px-4 py-2 text-sm ${query.view === view.id ? "bg-ink text-paper" : "bg-panel text-ink"}`}
               >
                 {view.label}
@@ -115,11 +123,12 @@ export function PublicChrome({
             ))}
           </div>
         ) : (
-          <Link href={withQuery(eventPath, query, { view: "all", photo: undefined })} className="text-sm text-muted">
+          <Link href={withQuery(eventPath, query, { view: "all", photo: undefined })} scroll={false} prefetch={false} className="text-sm text-muted">
             ← Wszystkie zdjęcia rajdu
           </Link>
         )}
-        <form action={formPath} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <GallerySearchForm action={formPath}>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {query.view !== "all" ? <input type="hidden" name="view" value={query.view} /> : null}
           {query.display !== "grid" ? <input type="hidden" name="display" value={query.display} /> : null}
           {query.author ? <input type="hidden" name="author" value={query.author} /> : null}
@@ -171,20 +180,21 @@ export function PublicChrome({
           <button className="h-10 rounded-md bg-ink px-4 text-sm text-paper" type="submit">
             Szukaj
           </button>
-        </form>
+          </div>
+        </GallerySearchForm>
         <div className="flex flex-wrap gap-2 text-sm">
           {authorLabel ? (
-            <Link className="rounded-full bg-panel px-3 py-1" href={withQuery(formPath, query, { author: undefined, photo: undefined })}>
+            <Link className="rounded-full bg-panel px-3 py-1" scroll={false} prefetch={false} href={withQuery(formPath, query, { author: undefined, photo: undefined })}>
               Autor: {authorLabel} ×
             </Link>
           ) : null}
           {query.crew ? (
-            <Link className="rounded-full bg-panel px-3 py-1" href={withQuery(formPath, query, { crew: undefined, photo: undefined })}>
+            <Link className="rounded-full bg-panel px-3 py-1" scroll={false} prefetch={false} href={withQuery(formPath, query, { crew: undefined, photo: undefined })}>
               {query.crew === spectatorsCrew ? "Kibice" : `Załoga ${query.crew}`} ×
             </Link>
           ) : null}
           {query.car ? (
-            <Link className="rounded-full bg-panel px-3 py-1" href={withQuery(formPath, query, { car: undefined, photo: undefined })}>
+            <Link className="rounded-full bg-panel px-3 py-1" scroll={false} prefetch={false} href={withQuery(formPath, query, { car: undefined, photo: undefined })}>
               Auto: {activeCar ?? query.car} ×
             </Link>
           ) : null}
@@ -195,6 +205,8 @@ export function PublicChrome({
               <Link
                 key={item.id}
                 href={withQuery(formPath, query, { display: item.id, photo: undefined })}
+                scroll={false}
+                prefetch={false}
                 className={query.display === item.id ? "text-accent" : "text-muted"}
               >
                 {item.label}

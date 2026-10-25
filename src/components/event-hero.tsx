@@ -127,6 +127,13 @@ export function EventHero({
         href="#galeria"
         aria-label={`Przewiń do galerii, ${photoCount} ${photoWord(photoCount)}`}
         className="absolute inset-y-0 right-0 z-20 grid w-[100px] grid-cols-1 grid-rows-[1fr_auto_auto_1fr] bg-white"
+        onClick={(event) => {
+          const gallery = document.getElementById("galeria");
+          if (!gallery) return;
+          event.preventDefault();
+          const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          gallery.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+        }}
       >
         <span
           aria-hidden

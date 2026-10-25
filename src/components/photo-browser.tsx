@@ -371,6 +371,44 @@ function Lightbox({
   useEffect(() => {
     doneRef.current = onFlightDone;
   });
+  const [trackId, setTrackId] = useState(photo.id);
+  const [outgoing, setOutgoing] = useState<PhotoCard | null>(null);
+  const [revealed, setRevealed] = useState(true);
+  const held = useRef(photo);
+  if (photo.id !== trackId) {
+    if (flight.phase === "open" && !prefersReduced()) setOutgoing(held.current);
+    else setOutgoing(null);
+    setTrackId(photo.id);
+    setRevealed(flight.phase !== "open" || prefersReduced());
+  }
+  held.current = photo;
+
+  useEffect(() => {
+    if (revealed) return;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      setRevealed(true);
+    };
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(finish);
+    });
+    const timer = window.setTimeout(finish, 48);
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+      window.clearTimeout(timer);
+    };
+  }, [revealed, photo.id]);
+
+  useEffect(() => {
+    if (!revealed || !outgoing) return;
+    const timer = window.setTimeout(() => setOutgoing(null), 520);
+    return () => window.clearTimeout(timer);
+  }, [revealed, outgoing, photo.id]);
+
   const dest = fitFrame(aspectOf(photo), viewport);
   const flying = flight.phase !== "open";
   const duration = flight.phase === "back" ? 460 : FLIGHT_MS;
@@ -412,7 +450,24 @@ function Lightbox({
           transition: flight.phase === "from" ? "none" : `transform ${duration}ms ${curve}, border-radius ${duration}ms ${curve}${settle ? `, ${settle}` : ""}`,
         }}
       >
-        <Image src={photo.viewUrl} alt={photo.caption || photo.authorName} fill unoptimized className="object-cover" sizes="100vw" />
+        <div className="absolute inset-0">
+          {[outgoing, photo].filter((item): item is PhotoCard => item !== null).map((item) => {
+            const onTop = item.id === photo.id;
+            const opacity = onTop ? (revealed ? 1 : 0) : revealed ? 0 : 1;
+            return (
+              <Image
+                key={item.id}
+                src={item.viewUrl}
+                alt={onTop ? item.caption || item.authorName : ""}
+                fill
+                unoptimized
+                className="object-cover"
+                sizes="100vw"
+                style={{ opacity, zIndex: onTop ? 1 : 0, transition: "opacity 480ms ease" }}
+              />
+            );
+          })}
+        </div>
       </div>
       {photos.length > 1 ? (
         <>
