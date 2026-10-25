@@ -177,7 +177,7 @@ export function PublicChrome({
           ) : (
             <input type="hidden" name="sort" value={query.sort} />
           )}
-          <button className="h-10 rounded-md bg-ink px-4 text-sm text-paper" type="submit">
+          <button className="h-10 rounded-md bg-accent px-4 text-sm font-medium text-white" type="submit">
             Szukaj
           </button>
           </div>
@@ -214,6 +214,9 @@ export function PublicChrome({
             ))}
           </div>
         ) : null}
+        <div aria-hidden className="pointer-events-none relative -mx-4 h-28 overflow-hidden sm:h-36">
+          <img src="/brand/gallery-mountains.svg?v=3" alt="" className="absolute inset-x-0 bottom-0 h-full w-full object-cover object-center" />
+        </div>
         {children}
       </div>
     </div>

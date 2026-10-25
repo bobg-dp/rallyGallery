@@ -152,7 +152,7 @@ export function PinMap({
       zoom: placed ? 13 : 5,
     });
     mapRef.current = map;
-    const marker = new maplibregl.Marker({ draggable: true, color: "#c2410c" });
+    const marker = new maplibregl.Marker({ draggable: true, color: "#f76003" });
     markerRef.current = marker;
     if (placed) marker.setLngLat([longitude, latitude]).addTo(map);
     map.on("load", () => {

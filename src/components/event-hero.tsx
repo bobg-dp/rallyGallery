@@ -9,11 +9,11 @@ const antonSc = Anton_SC({
   subsets: ["latin", "latin-ext"],
 });
 
-const railRed = "#d10f0f";
+const railRed = "#F76003";
 
 const checkerboard = {
   backgroundImage:
-    "conic-gradient(#1a1714 25%, transparent 0 50%, #1a1714 0 75%, transparent 0)",
+    "conic-gradient(#19364E 25%, transparent 0 50%, #19364E 0 75%, transparent 0)",
   backgroundSize: "40px 40px",
   maskImage: "linear-gradient(to bottom, transparent, #000)",
   WebkitMaskImage: "linear-gradient(to bottom, transparent, #000)",
@@ -91,6 +91,24 @@ export function EventHero({
       <div
         className={`${antonSc.className} pointer-events-none absolute top-[max(4.75rem,calc(20%-8.5rem))] left-[10%] z-10 max-w-[min(70%,calc(90%-7.25rem))] text-white`}
       >
+        <a
+          href="https://rajdsniezki.pl"
+          className="pointer-events-auto mb-4 inline-flex items-center gap-3"
+        >
+          <Image
+            src="/brand/ak-karkonosze.webp"
+            alt=""
+            width={64}
+            height={73}
+            priority
+            className="h-14 w-auto drop-shadow-[0_6px_16px_rgba(0,0,0,0.35)] md:h-16"
+          />
+          <span className="text-[11px] leading-tight font-medium tracking-[0.16em] text-white uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)] md:text-sm">
+            Automobilklub
+            <br />
+            Karkonosze
+          </span>
+        </a>
         <Image
           src="/brand/rajd-sniezki.png"
           alt=""

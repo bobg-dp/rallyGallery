@@ -125,7 +125,7 @@ export function PhotoMap({
         source: "photos",
         paint: {
           "circle-radius": 7,
-          "circle-color": "#c2410c",
+          "circle-color": "#f76003",
           "circle-stroke-width": 2,
           "circle-stroke-color": "#fffdf8",
         },

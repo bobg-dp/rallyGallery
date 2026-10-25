@@ -14,6 +14,9 @@ const PhotoMap = dynamic(() => import("./photo-map").then((mod) => mod.PhotoMap)
 
 const emptyQuery: PublicQuery = { view: "all", display: "grid", sort: "time" };
 let closeInfo: (() => void) | null = null;
+let closePace: (() => void) | null = null;
+
+const slidePaces = [3, 5, 7, 10] as const;
 
 const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
 const EASE_BACK = "cubic-bezier(0.55, 0, 0.2, 1)";
@@ -193,6 +196,36 @@ function ThumbStrip({ photos, index, onShow }: { photos: PhotoCard[]; index: num
   );
 }
 
+function secondsLabel(value: number) {
+  if (value === 1) return "1 sekunda";
+  if (value < 5) return `${value} sekundy`;
+  return `${value} sekund`;
+}
+
+function activeFullscreen() {
+  const doc = document as Document & { webkitFullscreenElement?: Element | null };
+  return document.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+}
+
+function enterFullscreen(node: HTMLElement | null) {
+  if (!node) return;
+  const target = node as HTMLElement & { webkitRequestFullscreen?: () => void };
+  if (target.requestFullscreen) {
+    void target.requestFullscreen().catch(() => {});
+    return;
+  }
+  target.webkitRequestFullscreen?.();
+}
+
+function leaveFullscreen() {
+  const doc = document as Document & { webkitExitFullscreen?: () => void };
+  if (document.fullscreenElement && document.exitFullscreen) {
+    void document.exitFullscreen().catch(() => {});
+    return;
+  }
+  doc.webkitExitFullscreen?.();
+}
+
 function PlayMark() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -352,7 +385,10 @@ function Lightbox({
   onFlightDone: () => void;
 }) {
   const index = Math.max(photos.findIndex((item) => item.id === photo.id), 0);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [seconds, setSeconds] = useState<(typeof slidePaces)[number]>(5);
+  const [paceOpen, setPaceOpen] = useState(false);
   const doneRef = useRef(onFlightDone);
   const showRef = useRef(onShow);
   useEffect(() => {
@@ -365,9 +401,45 @@ function Lightbox({
       const current = photos.findIndex((item) => item.id === photo.id);
       if (current < 0) return;
       showRef.current(photos[(current + 1) % photos.length].id);
-    }, 4500);
+    }, seconds * 1000);
     return () => window.clearInterval(timer);
-  }, [playing, photo.id, photos, flight.phase]);
+  }, [playing, photo.id, photos, flight.phase, seconds]);
+
+  useEffect(() => {
+    if (!paceOpen) return;
+    closePace = () => setPaceOpen(false);
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && dialogRef.current?.querySelector("[data-pace]")?.contains(target)) return;
+      setPaceOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointer);
+    return () => {
+      closePace = null;
+      window.removeEventListener("pointerdown", onPointer);
+    };
+  }, [paceOpen]);
+
+  useEffect(() => {
+    const onFullscreen = () => {
+      if (!activeFullscreen()) setPlaying(false);
+    };
+    document.addEventListener("fullscreenchange", onFullscreen);
+    document.addEventListener("webkitfullscreenchange", onFullscreen);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreen);
+      document.removeEventListener("webkitfullscreenchange", onFullscreen);
+      if (activeFullscreen()) void leaveFullscreen();
+    };
+  }, []);
+
+  function togglePlay() {
+    const next = !playing;
+    setPlaying(next);
+    setPaceOpen(false);
+    if (next) void enterFullscreen(dialogRef.current);
+    else void leaveFullscreen();
+  }
   useEffect(() => {
     doneRef.current = onFlightDone;
   });
@@ -422,7 +494,7 @@ function Lightbox({
   }, [flight.phase, duration]);
 
   return (
-    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Podgląd zdjęcia">
+    <div ref={dialogRef} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Podgląd zdjęcia">
       <button
         type="button"
         aria-label="Zamknij podgląd"
@@ -510,16 +582,51 @@ function Lightbox({
         <InfoPlate photo={photo} eventSlug={eventSlug} viewportWidth={viewport.w} />
       </div>
       {photos.length > 1 ? (
-        <button
-          type="button"
-          aria-pressed={playing}
-          className="absolute bottom-[4.75rem] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm text-paper backdrop-blur-sm"
+        <div
+          className="absolute bottom-[4.75rem] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2"
           style={{ opacity: flight.phase === "open" ? 1 : 0, pointerEvents: flight.phase === "open" ? "auto" : "none", transition: "opacity 240ms ease 180ms" }}
-          onClick={() => setPlaying((value) => !value)}
         >
-          {playing ? <PauseMark /> : <PlayMark />}
-          {playing ? "Zatrzymaj pokaz" : "Odtwarzaj pokaz"}
-        </button>
+          <button
+            type="button"
+            aria-pressed={playing}
+            className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm text-paper backdrop-blur-sm"
+            onClick={togglePlay}
+          >
+            {playing ? <PauseMark /> : <PlayMark />}
+            {playing ? "Zatrzymaj pokaz" : "Odtwarzaj pokaz"}
+          </button>
+          <div className="relative" data-pace="">
+            <button
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={paceOpen}
+              aria-label={`Długość slajdu, ${secondsLabel(seconds)}`}
+              className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-xs font-medium text-paper backdrop-blur-sm"
+              onClick={() => setPaceOpen((open) => !open)}
+            >
+              {seconds}s
+            </button>
+            {paceOpen ? (
+              <div role="listbox" aria-label="Długość slajdu" className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 flex-col gap-1">
+                {slidePaces.map((pace) => (
+                  <button
+                    key={pace}
+                    type="button"
+                    role="option"
+                    aria-selected={pace === seconds}
+                    className={`grid h-11 w-11 place-items-center rounded-full text-xs font-medium text-paper backdrop-blur-sm ${pace === seconds ? "bg-accent" : "bg-white/20"}`}
+                    onClick={() => {
+                      setSeconds(pace);
+                      setPaceOpen(false);
+                    }}
+                  >
+                    {pace}s
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
       ) : null}
       {photos.length > 1 ? (
         <div style={{ opacity: flight.phase === "open" ? 1 : 0, pointerEvents: flight.phase === "open" ? "auto" : "none", transition: "opacity 240ms ease 180ms" }}>
@@ -649,7 +756,9 @@ export function PhotoBrowser({
       const current = photos.findIndex((photo) => photo.id === openIdRef.current);
       if (current < 0) return;
       if (event.key === "Escape") {
-        if (closeInfo) closeInfo();
+        if (activeFullscreen()) return;
+        if (closePace) closePace();
+        else if (closeInfo) closeInfo();
         else showRef.current(null);
       }
       if (event.key === "ArrowRight") showRef.current(photos[(current + 1) % photos.length].id);

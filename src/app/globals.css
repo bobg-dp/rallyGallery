@@ -3,14 +3,14 @@
 @theme {
   --font-sans: var(--font-outfit), sans-serif;
   --font-display: var(--font-fraunces), serif;
-  --color-ink: #1a1714;
-  --color-paper: #f3eee4;
-  --color-panel: #fffdf8;
-  --color-line: #e4d9c8;
-  --color-muted: #6f675c;
-  --color-accent: #c2410c;
-  --color-accent-ink: #9a3412;
-  --color-pine: #1c3b32;
+  --color-ink: #19364e;
+  --color-paper: #ffffff;
+  --color-panel: #f3f6f9;
+  --color-line: #d5e0ea;
+  --color-muted: #5a7084;
+  --color-accent: #f76003;
+  --color-accent-ink: #c44700;
+  --color-pine: #19364e;
 }
 
 html {
@@ -22,7 +22,16 @@ body {
 }
 
 ::selection {
-  background: #f0c7b4;
+  background: #ffd3b3;
+}
+
+#galeria {
+  background-color: #fff;
+  background-image: url("/brand/gallery-mountains.svg?v=3"), linear-gradient(#f76003, #f76003);
+  background-repeat: no-repeat;
+  background-position: center bottom, top;
+  background-size: 100% auto, 100% 3px;
+  background-attachment: fixed, scroll;
 }
 
 :focus-visible {
