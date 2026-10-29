@@ -1,13 +1,7 @@
 "use client";
 
-import { Saira_Condensed } from "next/font/google";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-
-const saira = Saira_Condensed({
-  weight: ["400", "900"],
-  subsets: ["latin", "latin-ext"],
-});
 
 const railRed = "#F76003";
 
@@ -95,7 +89,7 @@ export function EventHero({
         />
       </a>
       <div
-        className={`${saira.className} pointer-events-none absolute top-[max(4.75rem,calc(20%-8.5rem))] left-[10%] z-10 max-w-[min(70%,calc(90%-7.25rem))] text-white`}
+        className="pointer-events-none absolute top-[max(4.75rem,calc(20%-8.5rem))] left-[10%] z-10 max-w-[min(70%,calc(90%-7.25rem))] text-white"
       >
         <a
           href="https://rajdsniezki.pl"
@@ -251,7 +245,7 @@ function PhotoCount({ count }: { count: number }) {
       aria-hidden
     >
       <span
-        className={`${saira.className} text-[1.7rem] leading-none`}
+        className="text-[1.7rem] leading-none"
         style={{ fontStyle: "italic", fontWeight: 400 }}
       >
         {Math.max(0, count)}

@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { Fraunces, Outfit } from "next/font/google";
+import { Saira_Condensed } from "next/font/google";
 import { shareImage } from "@/lib/share-image";
 import "./globals.css";
 
-const outfit = Outfit({
+const saira = Saira_Condensed({
+  weight: ["400", "900"],
   subsets: ["latin", "latin-ext"],
-  variable: "--font-outfit",
-});
-
-const fraunces = Fraunces({
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-fraunces",
+  variable: "--font-saira",
 });
 
 export const metadata: Metadata = {
@@ -36,7 +32,7 @@ export const dynamic = "force-dynamic";
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
   return (
-    <html lang="pl" className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}>
+    <html lang="pl" className={`${saira.variable} h-full antialiased`}>
       <body className="min-h-full bg-paper text-ink">
         <script
           dangerouslySetInnerHTML={{
